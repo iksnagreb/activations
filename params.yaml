@@ -1,0 +1,59 @@
+# Tagging of metrics and verification aggregation to assist filtering experiment
+# sweeps
+tag: ""
+# Global seed to make evaluation reproducible
+seed: 12
+# Number of calibration passes to be applied to the model before export
+calibration_passes: 4096
+# Shape of the inputs (excluding the batch dimension)
+shape: [ 4096 ]
+# Model configuration section
+model:
+  # Name identifying the activation function
+  activation: floor
+  # Number of bits to use at the input
+  input_bits: 8
+  # Number of bits to use for the quantized activation function
+  bits: 8
+# Model to ONNX export hyperparameters
+export:
+  # Version of the default ONNX opset
+  opset_version: 14
+  # Apply the constant-folding optimization
+  do_constant_folding: true
+# FINN build configuration
+build:
+  # Directory to store the build outputs
+  output_dir: build
+  # Run synthesis to generate a .dcp for the stitched-IP output product
+  stitched_ip_gen_dcp: False
+  # Target clock period, i.e., inverse of target frequency
+  synth_clk_period_ns: 10.0
+  # Board to target with the build
+  board: RFSoC2x2
+  # Target shell flow: 'vivado_zynq' or 'vitis_alveo'
+  shell_flow_type: vivado_zynq
+  # Path to folding configuration file
+  folding_config_file: folding.json
+  # Path to layer implementation style specialization config
+  specialize_layers_config_file: specialize_layers.json
+  # Force the implementation of standalone thresholds to be able to use RTL
+  # implementation of the MVU
+  standalone_thresholds: True
+  # Maximum bit-width of quantizers converted to multi-thresholds
+  max_multithreshold_bit_width: 16
+  # Maximum width of MVAU stream per PE
+  mvau_wwidth_max: 2048
+  # FIFO nodes with depth larger than 32768 will be split
+  split_large_fifos: true
+#  # Optional: Start the build from a specific step
+#  start_step: "step_quant_activation_to_multithreshold"
+  # Optional: Stop the build after a specific step
+  stop_step: "step_minimize_bit_width"
+# Metrics aggregation configuration
+metrics:
+  # Path to the report file to be summarized
+  # Note: remember to adjust the build directory when changing the config above
+  report: "build/report/post_synth_resources.json"
+  # Filter the report rows
+  filter: "(top)"

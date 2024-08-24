@@ -1,0 +1,12 @@
+# PyCharm IDE folder
+.idea/
+# Local python environment
+.venv/
+# Exported ONNX models
+*.onnx
+# Python cache
+__pycache__
+/inp.npy
+/out.npy
+/build
+
