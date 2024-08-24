@@ -1,0 +1,135 @@
+schema: '2.0'
+stages:
+  setup:
+    cmd: python -m export
+    deps:
+    - path: activations.py
+      hash: md5
+      md5: b104224022e83fb6b8518c90b17dd363
+      size: 23930
+    - path: export.py
+      hash: md5
+      md5: 9844611438a5115029a3219fe9374b36
+      size: 3110
+    - path: utils.py
+      hash: md5
+      md5: f84dabfd10a04e1bb70b41d6be638042
+      size: 381
+    params:
+      params.yaml:
+        calibration_passes: 4096
+        export:
+          opset_version: 14
+          do_constant_folding: true
+        model:
+          activation: sigmoid
+          input_bits: 8
+          bits: 8
+        seed: 12
+        shape:
+        - 4096
+    outs:
+    - path: inp.npy
+      hash: md5
+      md5: 3153b16fdae51a0d806c0b8f05752fe8
+      size: 16512
+    - path: model.onnx
+      hash: md5
+      md5: 4760fd16d9132fffcb45f7d7526e4e3b
+      size: 1102
+    - path: out.npy
+      hash: md5
+      md5: 47b0b282f7e3ba85cd133e2ce4b23d75
+      size: 16512
+  build:
+    cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
+    deps:
+    - path: build.py
+      hash: md5
+      md5: a7ab07e5140d68369f169ab50df02da2
+      size: 4032
+    - path: build_steps.py
+      hash: md5
+      md5: 4f59a040afaf338b98859d8c0cc2fed2
+      size: 1661
+    - path: inp.npy
+      hash: md5
+      md5: 3153b16fdae51a0d806c0b8f05752fe8
+      size: 16512
+    - path: model.onnx
+      hash: md5
+      md5: 4760fd16d9132fffcb45f7d7526e4e3b
+      size: 1102
+    - path: noctua.sh
+      hash: md5
+      md5: f3e8cc342b63cddcd2e07bfe63f6518c
+      size: 1832
+    - path: out.npy
+      hash: md5
+      md5: 47b0b282f7e3ba85cd133e2ce4b23d75
+      size: 16512
+    - path: quant_activation_to_multithreshold.py
+      hash: md5
+      md5: ff2da6f9907a13cc5c35fa34a3e40945
+      size: 17180
+    - path: run.sh
+      hash: md5
+      md5: 6e3e34149c16795c5a8424a51bdbf5f8
+      size: 1616
+    - path: utils.py
+      hash: md5
+      md5: f84dabfd10a04e1bb70b41d6be638042
+      size: 381
+    params:
+      params.yaml:
+        build:
+          output_dir: build
+          stitched_ip_gen_dcp: false
+          synth_clk_period_ns: 10.0
+          board: RFSoC2x2
+          shell_flow_type: vivado_zynq
+          folding_config_file: folding.json
+          specialize_layers_config_file: specialize_layers.json
+          standalone_thresholds: true
+          max_multithreshold_bit_width: 16
+          mvau_wwidth_max: 2048
+          split_large_fifos: true
+          stop_step: step_streamline
+        seed: 12
+        shape:
+        - 4096
+      folding.json:
+        Defaults: {}
+      specialize_layers.json:
+        '':
+          preferred_impl_style: ''
+        Defaults:
+          preferred_impl_style:
+          - rtl
+          - - Thresholding
+    outs:
+    - path: build/
+      hash: md5
+      md5: 533a9e9f527789cf2c83affdfee06970.dir
+      size: 29316414
+      nfiles: 10
+  verify:
+    cmd: python -m verify
+    deps:
+    - path: build/verification_output/
+      hash: md5
+      md5: 500693de49a398c8e1b6504b286ea6b0.dir
+      size: 66048
+      nfiles: 4
+    - path: verify.py
+      hash: md5
+      md5: 2cbebda1e941ed0be91b40ea513c8b8d
+      size: 971
+    params:
+      params.yaml:
+        build.output_dir: build
+    outs:
+    - path: verification.yaml
+      hash: md5
+      md5: 5224a3f087dfdd2bec5b236e4205ac3c
+      size: 22

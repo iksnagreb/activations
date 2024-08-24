@@ -10,7 +10,7 @@ shape: [ 4096 ]
 # Model configuration section
 model:
   # Name identifying the activation function
-  activation: floor
+  activation: sigmoid
   # Number of bits to use at the input
   input_bits: 8
   # Number of bits to use for the quantized activation function
@@ -49,7 +49,7 @@ build:
 #  # Optional: Start the build from a specific step
 #  start_step: "step_quant_activation_to_multithreshold"
   # Optional: Stop the build after a specific step
-  stop_step: "step_minimize_bit_width"
+  stop_step: "step_streamline"
 # Metrics aggregation configuration
 metrics:
   # Path to the report file to be summarized

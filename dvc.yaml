@@ -1,0 +1,112 @@
+# List experiment stages, i.e., the jobs to be run
+stages:
+  # Stage preparing the model form the configuration
+  setup:
+    # Stage run the setup script as the command
+    cmd: python -m export
+    # Dependencies of this stage to determine when it needs to be rerun
+    deps:
+      # The scripts used to execute the stage
+      - export.py
+      - activations.py
+      - utils.py
+    # Parameters used by this stage
+    params:
+      # Track the model and export hyperparameter sections from the parameters
+      - model
+      - export
+      - seed
+      - shape
+      - calibration_passes
+    # Outputs produced by this stage which should be tracked and passed on to
+    # the next stage
+    outs:
+      # The dummy model exported as ONNX
+      - model.onnx
+      # Input/Output pair in numpy format for verification during the build
+      - inp.npy
+      - out.npy
+  # Stage running the finn build of the dummy model configured in parameters
+  build:
+    # Command running a finn build of the model produced during setup
+    #   Note: More options should be provided via environment variables
+    cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
+    # Dependencies of this stage to determine when it needs to be rerun
+    deps:
+      # Run scripts orchestrating the script execution (potentially via sbatch)
+      - run.sh
+      - noctua.sh
+      # The script executing the stage
+      - build.py
+      # The custom build steps implemented in this package
+      - build_steps.py
+      - quant_activation_to_multithreshold.py
+      - utils.py
+      # The model export produced by the setup stage: This triggers rerunning
+      # this stage when the model configuration changes
+      - model.onnx
+      # Input/Output pair in numpy format for verification during the build
+      - inp.npy
+      - out.npy
+    # Parameters used by this stage
+    params:
+      # Track the input shape, RNG-seed and build section from the parameters
+      # file
+      - shape
+      - seed
+      - build
+      # Folding configurations specifying parallelization and FIFO sizes for the
+      # layers/operators
+      - ${build.folding_config_file}:
+      # Configuration file specifying the preferred implementation style of
+      # custom operators
+      - ${build.specialize_layers_config_file}:
+    # Outputs produced by this stage which should be tracked and passed on to
+    # the next stage
+    outs:
+      # Track everything from the build directory
+      - ${build.output_dir}/
+#  # Stage collecting the synthesis metrics form the build stage
+#  metrics:
+#    # Command aggregating metrics from the build output products
+#    cmd: python -m metrics
+#    # Dependencies of this stage to determine when it needs to be rerun
+#    deps:
+#      # The script executing the stage
+#      - metrics.py
+#      # The output products of the previous stage
+#      - ${build.output_dir}/
+#      # The raw report file produced by finn
+#      - ${metrics.report}
+#    # Parameters used by this stage
+#    params:
+#      # Track the build section from the parameters file
+#      - build.output_dir
+#      # Track the metrics section from the parameters file
+#      - metrics
+#    # Produces metrics as output
+#    metrics:
+#      # Track all metrics in this file
+#      - metrics.yaml:
+#          # Keep the metrics tracked by git
+#          cache: false
+  # Stage checking the verification output of the FINN dataflow build
+  verify:
+    # Command summarizing verification outputs from the build output products
+    cmd: python -m verify
+    # Dependencies of this stage to determine when it needs to be rerun
+    deps:
+      # The script executing the stage
+      - verify.py
+      # The output products of the previous stage
+      - ${build.output_dir}/verification_output/
+    # Parameters used by this stage
+    params:
+      # Track the build section from the parameters file
+      - build.output_dir
+    # Produces metrics as output
+    metrics:
+      # Track all metrics in this file
+      - verification.yaml:
+          # Keep the output tracked by git
+          cache: false
