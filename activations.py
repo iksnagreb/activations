@@ -1,6 +1,5 @@
 # PyTorch base package: Math and Tensor Stuff
 import torch
-from antlr4.tree.Trees import Trees
 # Brevitas: Quantizers and Quantized versions of PyTorch layers
 from brevitas.nn import QuantIdentity
 
@@ -173,7 +172,8 @@ class QuantSELU(torch.nn.Module):
 
 
 # Quantized CELU activation function
-@register_activation("celu")
+# TODO: Requires opset version >= 12 while QONNX still prefers version 11
+# @register_activation("celu")
 class QuantCELU(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, alpha=1.0, **kwargs):
@@ -218,7 +218,7 @@ class QuantELU(torch.nn.Module):
 # Quantized HardShrink activation function
 # TODO: Seems to export to a mess which needs to be cleaned up before this can
 #  be converted to MultiThreshold
-@register_activation("hardshrink")
+# @register_activation("hardshrink")
 class QuantHardShrink(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, lambd=0.5, **kwargs):
@@ -241,7 +241,7 @@ class QuantHardShrink(torch.nn.Module):
 # Quantized SoftShrink activation function
 # TODO: Seems to export to a mess which needs to be cleaned up before this can
 #  be converted to MultiThreshold
-@register_activation("softshrink")
+# @register_activation("softshrink")
 class QuantSoftShrink(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, lambd=0.5, **kwargs):
@@ -302,11 +302,11 @@ class QuantHardsigmoid(torch.nn.Module):
 
 
 # Quantized LogSigmoid activation function
-# Note: When exported results in a Sigmoid-Log-Quant chain, where only the final
-# Log-Quant will be converted to a MultiThreshold. This might be solved in the
-# future by repeated conversion rounds treating MultiThreshold as a quantizer
-# and thus collapsing longer Activation-...-Activation-Quant chains.
-@register_activation("logsigmoid")
+# TODO: When exported results in a Sigmoid-Log-Quant chain, where only the final
+#  Log-Quant will be converted to a MultiThreshold. This might be solved in the
+#  future by repeated conversion rounds treating MultiThreshold as a quantizer
+#  and thus collapsing longer Activation-...-Activation-Quant chains.
+# @register_activation("logsigmoid")
 class QuantLogSigmoid(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, **kwargs):
@@ -346,6 +346,7 @@ class QuantTanh(torch.nn.Module):
 
 
 # Quantized Hardtanh activation
+# Note: Exports as Clip(min_val,max_val)
 @register_activation("hardtanh")
 class QuantHardtanh(torch.nn.Module):
     # Initializes the model and registers the module parameters
@@ -399,7 +400,7 @@ class QuantSoftplus(torch.nn.Module):
 # Quantized Softsign activation
 # TODO: Currently not exported as a single node by PyTorch and thus needs to be
 #  cleaned up before conversion to MultiThreshold
-@register_activation("softsign")
+# @register_activation("softsign")
 class QuantSoftsign(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, **kwargs):
@@ -547,7 +548,6 @@ class QuantCeil(torch.nn.Module):
 # Quantized round function
 # Note: With decimals != 0 this exports to Round surrounded by Mul nodes which
 # needs to be cleaned up for conversion to MultiThreshold
-# TODO: Conversion to MultiThreshold fails verification...
 @register_activation("round")
 class QuantRound(torch.nn.Module):
     # Initializes the model and registers the module parameters
@@ -568,9 +568,28 @@ class QuantRound(torch.nn.Module):
         return self.quant(torch.round(x, decimals=self.decimals))
 
 
+# Quantized sign function
+@register_activation("sign")
+class QuantRound(torch.nn.Module):
+    # Initializes the model and registers the module parameters
+    def __init__(self, bits, **kwargs):
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+
+        # Quantized identity to be placed after the activation
+        self.quant = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+
+    # Forward pass of the activation function: round followed by quantizer
+    def forward(self, x):
+        return self.quant(torch.sign(x))
+
+
 # Quantized truncation function
 # TODO: Cannot be exported to ONNX at all?
-@register_activation("trunc")
+# @register_activation("trunc")
 class QuantTrunc(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, **kwargs):
@@ -594,7 +613,7 @@ class QuantTrunc(torch.nn.Module):
 # Quantized Tanhshrink activation
 # TODO: Exports as composite x - tanh(x) which needs quantizers before and after
 #  the subtraction
-@register_activation("tanhshrink")
+# @register_activation("tanhshrink")
 class QuantTanhshrink(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, **kwargs):

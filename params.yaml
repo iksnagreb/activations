@@ -4,9 +4,11 @@ tag: ""
 # Global seed to make evaluation reproducible
 seed: 12
 # Number of calibration passes to be applied to the model before export
-calibration_passes: 4096
+calibration_passes: 128
 # Shape of the inputs (excluding the batch dimension)
 shape: [ 4096 ]
+# Range of input values
+range: [-10, +10]
 # Model configuration section
 model:
   # Name identifying the activation function
@@ -14,7 +16,7 @@ model:
   # Number of bits to use at the input
   input_bits: 8
   # Number of bits to use for the quantized activation function
-  bits: 8
+  bits: 4
 # Model to ONNX export hyperparameters
 export:
   # Version of the default ONNX opset

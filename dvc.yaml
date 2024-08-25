@@ -17,6 +17,7 @@ stages:
       - export
       - seed
       - shape
+      - range
       - calibration_passes
     # Outputs produced by this stage which should be tracked and passed on to
     # the next stage

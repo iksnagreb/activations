@@ -1,8 +1,8 @@
-# Numpy for loading and comparing the verification input/output
+# Numpy for handling tensors (inputs, outputs, initializers, thresholds, ...)
 import numpy as np
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
-# Converts ONNX graph nodes to QONNX custom-ops if possible
+# Converts ONNX graph nodes to QONNX custom-ops instances if possible
 from qonnx.custom_op.registry import getCustomOp
 # QONNX base class for all graph transformations
 from qonnx.transformation.general import Transformation
@@ -28,7 +28,25 @@ from onnx import helper as oh
 
 # Supported monotonic activation functions
 SUPPORTED_MONOTONIC_ACTIVATIONS = {
-    "Ceil", "Round", "Floor", "Relu", "LeakyRelu", "Sigmoid", "Identity", "Tanh", "Erf", "Celu", "Elu", "Exp", "Log"
+    "Identity",
+    "Relu",
+    "LeakyRelu",
+    "Clip",
+    "Selu",
+    "Celu",
+    "Elu",
+    "Sigmoid",
+    "HardSigmoid",
+    "Tanh",
+    "Softplus",
+    "Exp",
+    "Log",
+    "Sqrt",
+    "Erf",
+    "Floor",
+    "Ceil",
+    "Round",
+    "Sign"
 }
 
 
@@ -159,8 +177,8 @@ class QuantActivationToMultiThreshold(Transformation):
                     # Enumerate the output levels, each will yield a set of
                     # thresholds covering all dimensions
                     while np.any(level < y1):
-                        # Evaluate the objective function once before entering
-                        # the loop
+                        # Evaluate the objective function "f(x) <= level" once
+                        # before entering the loop
                         fx = f(x) <= (scale * level - bias)
                         # Run over all input levels
                         while np.any(fx) and np.any(x <= x1):
@@ -189,9 +207,11 @@ class QuantActivationToMultiThreshold(Transformation):
                     bits = int(model.get_initializer(quant.input[3]))
                     # Need to pad the thresholds such that there are 2^bits - 1
                     padding = 2 ** bits - 1 - len(thresholds)
-                    # Fill up thresholds from the left repeating the smallest
-                    # threshold
-                    thresholds = [*(padding * [thresholds[0]]), *thresholds]
+                    # Get the lower bound of the input range
+                    min_inp = range_info[inp].range[0]
+                    # Fill up thresholds from the left repeating the lower bound
+                    # of the input range as smallest threshold
+                    thresholds = [*(padding * [min_inp]), *thresholds]
 
                     # Stack thresholds list into the thresholds tensor along the
                     # final dimension, i.e., steps last

@@ -5,41 +5,44 @@ stages:
     deps:
     - path: activations.py
       hash: md5
-      md5: b104224022e83fb6b8518c90b17dd363
-      size: 23930
+      md5: 3dd75d340e22d3667a0993ca4bd56b12
+      size: 24620
     - path: export.py
       hash: md5
-      md5: 9844611438a5115029a3219fe9374b36
-      size: 3110
+      md5: 025313409290b683c3d05b93091ddde1
+      size: 3272
     - path: utils.py
       hash: md5
       md5: f84dabfd10a04e1bb70b41d6be638042
       size: 381
     params:
       params.yaml:
-        calibration_passes: 4096
+        calibration_passes: 128
         export:
           opset_version: 14
           do_constant_folding: true
         model:
           activation: sigmoid
           input_bits: 8
-          bits: 8
+          bits: 4
+        range:
+        - -10
+        - 10
         seed: 12
         shape:
         - 4096
     outs:
     - path: inp.npy
       hash: md5
-      md5: 3153b16fdae51a0d806c0b8f05752fe8
+      md5: f1ed8d4a25875d440da47fa480f84ebf
       size: 16512
     - path: model.onnx
       hash: md5
-      md5: 4760fd16d9132fffcb45f7d7526e4e3b
-      size: 1102
+      md5: b8a4c3118c0d8e01977a722b2afee9ae
+      size: 1177
     - path: out.npy
       hash: md5
-      md5: 47b0b282f7e3ba85cd133e2ce4b23d75
+      md5: 76c9cfabdf0640fa1e8c4a7d412697f8
       size: 16512
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
@@ -54,24 +57,24 @@ stages:
       size: 1661
     - path: inp.npy
       hash: md5
-      md5: 3153b16fdae51a0d806c0b8f05752fe8
+      md5: f1ed8d4a25875d440da47fa480f84ebf
       size: 16512
     - path: model.onnx
       hash: md5
-      md5: 4760fd16d9132fffcb45f7d7526e4e3b
-      size: 1102
+      md5: b8a4c3118c0d8e01977a722b2afee9ae
+      size: 1177
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: 47b0b282f7e3ba85cd133e2ce4b23d75
+      md5: 76c9cfabdf0640fa1e8c4a7d412697f8
       size: 16512
     - path: quant_activation_to_multithreshold.py
       hash: md5
-      md5: ff2da6f9907a13cc5c35fa34a3e40945
-      size: 17180
+      md5: 1034d16b7caef2c735dd4fc9ce8467b7
+      size: 17495
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -110,15 +113,15 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 533a9e9f527789cf2c83affdfee06970.dir
-      size: 29316414
+      md5: 5e4fd0330b112ed4c13dcf5e3b595c1a.dir
+      size: 13587757
       nfiles: 10
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 500693de49a398c8e1b6504b286ea6b0.dir
+      md5: c110efffe8042a579841e928746fa1ac.dir
       size: 66048
       nfiles: 4
     - path: verify.py
