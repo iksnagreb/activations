@@ -605,8 +605,10 @@ class QuantTrunc(torch.nn.Module):
 #  constituents
 
 # Quantized Tanhshrink activation
-# TODO: Exports as composite x - tanh(x) which needs quantizers before and after
+# Note: Exports as composite x - tanh(x) which needs quantizers before and after
 #  the subtraction
+# TODO: Requires more elaborate streamlining and realization of subtraction and
+#  some elementwise multiplications in hardware
 # @register_activation("tanhshrink")
 class QuantTanhshrink(torch.nn.Module):
     # Initializes the model and registers the module parameters
@@ -615,14 +617,19 @@ class QuantTanhshrink(torch.nn.Module):
         super().__init__()
 
         # Quantized identity to be placed after the activation
-        self.quant = QuantIdentity(
+        self.quant0 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+        # Quantizer placed after the subtraction of the two branches
+        self.quant1 = QuantIdentity(
             # Quantize the activation output to signed bits
             act_quant=act_quantizer(bits, _signed=True), **kwargs
         )
 
     # Forward pass of the activation function: Tanh followed by quantizer
     def forward(self, x):
-        return self.quant(torch.nn.functional.tanhshrink(x))
+        return self.quant1(x - self.quant0(torch.tanh(x)))
 
 
 # TODO: Non-monotonic functions which could be expressed as compositions of
@@ -631,6 +638,33 @@ class QuantTanhshrink(torch.nn.Module):
 # SiLU(x) = x * sigmoid(x)
 # Mish(x) = x * tanh(softplus(x))
 # GLU(x) = x[:half] * sigmoid(x[half:])
+
+# Quantized SiLU activation
+# Note: Exports as composite x * sigmoid(x) which needs quantizers before and
+# after the multiplication
+# TODO: Requires more elaborate streamlining and realization of multiplication
+#  and some elementwise multiplications in hardware
+# @register_activation("silu")
+class QuantSiLU(torch.nn.Module):
+    # Initializes the model and registers the module parameters
+    def __init__(self, bits, **kwargs):
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+
+        # Quantized identity to be placed after the activation
+        self.quant0 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+        # Quantizer placed after the subtraction of the two branches
+        self.quant1 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+
+    # Forward pass of the activation function: Sigmoid followed by quantizer
+    def forward(self, x):
+        return self.quant1(x * self.quant0(torch.sigmoid(x)))
 
 
 # TODO: Non-monotonic functions which cannot be expressed as such simple
