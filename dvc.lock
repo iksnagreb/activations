@@ -5,8 +5,8 @@ stages:
     deps:
     - path: activations.py
       hash: md5
-      md5: 3dd75d340e22d3667a0993ca4bd56b12
-      size: 24620
+      md5: e685b36f3be0de934184f27168b27c15
+      size: 24219
     - path: export.py
       hash: md5
       md5: 025313409290b683c3d05b93091ddde1
@@ -49,12 +49,12 @@ stages:
     deps:
     - path: build.py
       hash: md5
-      md5: a7ab07e5140d68369f169ab50df02da2
-      size: 4032
+      md5: c9f03b51b6c7bdc5301fe6033772f1eb
+      size: 4359
     - path: build_steps.py
       hash: md5
-      md5: 4f59a040afaf338b98859d8c0cc2fed2
-      size: 1661
+      md5: 8900ed30a729c5fb6fc9439e35d67dc9
+      size: 2121
     - path: inp.npy
       hash: md5
       md5: f1ed8d4a25875d440da47fa480f84ebf
@@ -73,8 +73,8 @@ stages:
       size: 16512
     - path: quant_activation_to_multithreshold.py
       hash: md5
-      md5: 1034d16b7caef2c735dd4fc9ce8467b7
-      size: 17495
+      md5: 74de6a21db4a0ff7ec0f241665ae6aa2
+      size: 18414
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -113,8 +113,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 5e4fd0330b112ed4c13dcf5e3b595c1a.dir
-      size: 13587757
+      md5: 1b030122e6f7c80f160274da9cd183ee.dir
+      size: 13587754
       nfiles: 10
   verify:
     cmd: python -m verify

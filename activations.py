@@ -439,9 +439,6 @@ class QuantExp(torch.nn.Module):
 
 
 # Quantized natural logarithmic function
-# TODO: While defining and quantizing this is straightforward, generating sample
-#  inputs and performing range analysis is currently not possible as log is only
-#  defined for positive (real) inputs
 # TODO: As the log yields large (infinite) values near (at) zero, this is not
 #  easy to quantize, yielding infinite scale factors.
 @register_activation("log")
@@ -464,9 +461,6 @@ class QuantLog(torch.nn.Module):
 
 
 # Quantized square root function
-# TODO: While defining and quantizing this is straightforward, generating sample
-#  inputs and performing range analysis is currently not possible as sqrt is
-#  only defined for positive (real) inputs
 @register_activation("sqrt")
 class QuantSqrt(torch.nn.Module):
     # Initializes the model and registers the module parameters

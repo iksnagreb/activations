@@ -15,7 +15,7 @@ from qonnx.util.cleanup import cleanup_model
 
 # Range analysis to generate input ranges and scales use to enumerate inputs and
 # outputs of quantized activation functions to generate thresholds
-from qonnx.util.range_analysis import range_analysis
+from qonnx.util.range_analysis import range_analysis, RangeInfo
 # Executes an ONNX node considering QONNX domain operations as well
 from qonnx.core.onnx_exec import execute_node
 # Utility for creating a tensor according to the description in ONNX value info
@@ -85,6 +85,13 @@ class QuantActivationToMultiThreshold(Transformation):
     #  analysis: This might improve the threshold generation but is also
     #  necessary for some functions, like the log, which are only defined on
     #  parts of the real numbers.
+    # Initializes the conversion by setting a seed range information for the
+    # range analysis pass
+    def __init__(self, range_info: RangeInfo = None):
+        # Initialize the Transformation super class
+        super().__init__()
+        # Store the seed range information
+        self.range_info = range_info
 
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
@@ -95,7 +102,17 @@ class QuantActivationToMultiThreshold(Transformation):
         # Run range analysis on the model after converting Conv and Gemm to
         # MatMul and BatchNorm to affine transformations (lowering)
         range_info, model = range_analysis(
-            model, report_mode="range", scaled_int=True, lower_ops=True
+            # Transform and analyze the model: Returns a modified model
+            model,
+            # Seed input range information: Might be None
+            irange=self.range_info,
+            # Return the range information gathered during the analysis
+            report_mode="range",
+            # Produce scaled integer range information, not just floating-point
+            # Note: This is necessary for enumerating quantizer output levels
+            scaled_int=True,
+            # Perform lowering transformations onf Conv, Gemm and BatchNorm
+            lower_ops=True
         )
 
         # Creates a tensor according to the value info
@@ -172,8 +189,9 @@ class QuantActivationToMultiThreshold(Transformation):
                     (x, x1), dx = range_info[inp].range, range_info[inp].scale
                     # If the input range does not have a know scale for
                     # enumerating the thresholds, set some default
+                    # Note: Uses half the quantization scale as the step size
                     # TODO: Make this configurable
-                    dx = 1e-3 if dx is None else dx
+                    dx = 1e-3 if dx is None else 0.5 * dx
                     # Enumerate the output levels, each will yield a set of
                     # thresholds covering all dimensions
                     while np.any(level < y1):

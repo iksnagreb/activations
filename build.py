@@ -6,11 +6,15 @@ import finn.builder.build_dataflow as build
 import finn.builder.build_dataflow_config as build_cfg
 from finn.builder.build_dataflow_config import AutoFIFOSizingMethod
 
+# Range information structure for seeding the range analysis for converting
+# quantized activations to MultiThreshold
+from qonnx.util.range_analysis import RangeInfo
+
 # Seeding RNGs for reproducibility
 from utils import seed
 
 # Custom build steps for handling quantizer to multi-threshold conversion
-from build_steps import step_quant_activation_to_multithreshold
+from build_steps import quant_activation_to_multithreshold
 
 # Script entrypoint
 if __name__ == "__main__":
@@ -20,6 +24,12 @@ if __name__ == "__main__":
         params = yaml.safe_load(file)
     # Seed all RNGs
     seed(params["seed"])
+
+    # Construct the seed range information of the input tensor
+    range_info = RangeInfo(
+        shape=(1, *params["shape"]), range=params["range"]
+    )
+
     # Create a configuration for building the scaled dot-product operator to a
     # hardware accelerator
     cfg = build_cfg.DataflowBuildConfig(
@@ -62,7 +72,7 @@ if __name__ == "__main__":
         steps=[
             # Custom step to convert all suitable QONNX Quant nodes to
             # Multithreshold nodes via range analysis
-            step_quant_activation_to_multithreshold,
+            quant_activation_to_multithreshold(range_info),
             # Convert all remaining QONNX Quant nodes not handled by the step
             # before to Multithreshold nodes
             # Note: These are input quantizers (due to missing int-range at the
