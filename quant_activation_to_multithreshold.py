@@ -208,6 +208,11 @@ class QuantActivationToMultiThreshold(Transformation):
                             x = np.where(fx, x + dx, x)
                             # Clip at the upper bound of the input range
                             x = np.where(x >= x1, x1, x)
+                            # Sanitize x to match the input quantization levels
+                            # according to the scale or step size dx
+                            # Note: This accounts for floating-point
+                            # inaccuracies due to repeated addition of +dx
+                            x = np.round(x / dx) * dx
                         # The thresholds for the level are now stored in x
                         # Note: The actual threshold is halfway between this and
                         # the previous step, i.e., -0.5 * dx

@@ -73,8 +73,8 @@ stages:
       size: 16512
     - path: quant_activation_to_multithreshold.py
       hash: md5
-      md5: 74de6a21db4a0ff7ec0f241665ae6aa2
-      size: 18414
+      md5: b2aebfaa0c851d5bb79d657052b322e9
+      size: 18761
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -113,7 +113,7 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 1b030122e6f7c80f160274da9cd183ee.dir
+      md5: 5108f021849e8f55d469a6f7e0428306.dir
       size: 13587754
       nfiles: 10
   verify:
