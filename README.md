@@ -28,7 +28,7 @@
 |             `Sign`             |   ✅   |   ✅    |     ✅      |      ✅       |    ❔     |              |     |
 |            `Trunc`             |   ✅   |   ❌    |     ❌      |      ❌       |    ❌     |  No Export   |     |
 |          `Tanhshrink`          |   ✅   |   ✅    |     ✅      |      ❌       |    ❌     |  Composite   |     |
-|             `SiLU`             |   ✅   |   ✅    |     ✅      |      ❌       |    ❌     |  Composite   |     |
-|             `GELU`             |   ✅   |   ✅    |    ✅(❌)   |      ❌       |    ❌     |  Composite   |     |
+|             `SiLU`             |   ✅   |   ✅    |     ✅      |      ✅       |    ❌     |  Composite   |     |
+|             `GELU`             |   ✅   |   ✅    |    ✅(❌)   |      ✅(❌)   |    ❌     |  Composite   |     |
 |             `Mish`             |   ✅   |   ✅    |     ❌      |      ❌       |    ❌     |  Composite   |     |
 |             `GLU`              |   ✅   |   ✅    |     ✅      |      ❌       |    ❌     |  Composite   |     |

@@ -14,7 +14,12 @@ from qonnx.util.range_analysis import RangeInfo
 from utils import seed
 
 # Custom build steps for handling quantizer to multi-threshold conversion
-from build_steps import quant_activation_to_multithreshold
+from build_steps import (
+    quant_activation_to_multithreshold,
+    step_streamline,
+    step_convert_elementwise_binary_to_hw,
+    step_replicate_streams
+)
 
 # Script entrypoint
 if __name__ == "__main__":
@@ -66,9 +71,9 @@ if __name__ == "__main__":
         # Save the intermediate model graphs
         save_intermediate_models=True,
         # Avoid RTL simulation for setting the FIFO sizes
-        auto_fifo_strategy=AutoFIFOSizingMethod.CHARACTERIZE,
+        auto_fifo_strategy=AutoFIFOSizingMethod.LARGEFIFO_RTLSIM,
         # Do not automatically set FIFO sizes for now
-        auto_fifo_depths=False,
+        auto_fifo_depths=True,
         # Build steps to execute
         steps=[
             # Custom step to convert all suitable QONNX Quant nodes to
@@ -80,9 +85,19 @@ if __name__ == "__main__":
             # input) and BipolarQuant which are currently not fully supported by
             # range analysis.
             "step_qonnx_to_finn",
-            # Continue with default FINN build flow from here on
             "step_tidy_up",
+            # Custom streamlining step to deal with composite activation
+            # functions
+            step_streamline,
+            # Default streamlining step to trigger verification
             "step_streamline",
+            # Convert elementwise binary operations to hardware to support
+            # composite activation functions
+            step_convert_elementwise_binary_to_hw,
+            # Convert forks to stream replication to support composite
+            # activation functions
+            step_replicate_streams,
+            # Continue with default FINN build flow from here on
             "step_convert_to_hw",
             "step_specialize_layers",
             "step_create_dataflow_partition",

@@ -611,6 +611,12 @@ class QuantTrunc(torch.nn.Module):
 #  the subtraction
 # TODO: Requires more elaborate streamlining and realization of subtraction and
 #  some elementwise multiplications in hardware
+# TODO: We cannot simply have a tied quantizer at the inputs to the subtraction
+#  as it will fit to the tanh mimicking the saturation behavior on the skipping
+#  branch, which results in a different function. However, without a tied
+#  quantizer at both inputs to the subtraction this cannot be properly
+#  streamlined, leaving float operations in the graph (two Mul, one Sub, the
+#  output quantizer will have float inputs).
 # @register_activation("tanhshrink")
 class QuantTanhshrink(torch.nn.Module):
     # Initializes the model and registers the module parameters
@@ -640,13 +646,11 @@ class QuantTanhshrink(torch.nn.Module):
 # Quantized GELU activation
 # Note: Exports as composite ~ x * (1 + erf(x)) which needs quantizers before
 # and after the multiplication
-# TODO: Requires more elaborate streamlining and realization of multiplication
-#  and some elementwise multiplications in hardware
 # TODO: Tanh approximation lacks range analysis for Pow and seems even more
 #  complex regarding streamlining and hardware support. Maybe in FINN the exact
 #  formulation is actually the more efficient one, as the hard-to-evaluate Erf
 #  is calculated by thresholding.
-# @register_activation("gelu")
+@register_activation("gelu")
 class QuantGELU(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, approximate='none', **kwargs):
@@ -692,9 +696,7 @@ class QuantGELU(torch.nn.Module):
 # Quantized SiLU activation
 # Note: Exports as composite x * sigmoid(x) which needs quantizers before and
 # after the multiplication
-# TODO: Requires more elaborate streamlining and realization of multiplication
-#  and some elementwise multiplications in hardware
-# @register_activation("silu")
+@register_activation("silu")
 class QuantSiLU(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, **kwargs):
@@ -757,6 +759,7 @@ class QuantMish(torch.nn.Module):
 # Note: Cannot really be visualized, i.e., plotted due to splitting
 # TODO: Requires more elaborate streamlining and realization of split operator
 #  and some elementwise multiplications in hardware
+# TODO: Missing streamlining and backend support for Split
 # @register_activation("glu")
 class QuantGLU(torch.nn.Module):
     # Initializes the model and registers the module parameters
