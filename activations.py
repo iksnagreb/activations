@@ -1,3 +1,5 @@
+# Constants and mathematical functions, e.g., sqrt and pi
+import math
 # PyTorch base package: Math and Tensor Stuff
 import torch
 # Brevitas: Quantizers and Quantized versions of PyTorch layers
@@ -634,10 +636,58 @@ class QuantTanhshrink(torch.nn.Module):
 
 # TODO: Non-monotonic functions which could be expressed as compositions of
 #  various monotonic functions and binary elementwise operations:
-# GELU(x) ~ x * erf(x) (or ~ x * Tanh(...(x)) approximation)
-# SiLU(x) = x * sigmoid(x)
-# Mish(x) = x * tanh(softplus(x))
-# GLU(x) = x[:half] * sigmoid(x[half:])
+
+# Quantized GELU activation
+# Note: Exports as composite ~ x * (1 + erf(x)) which needs quantizers before
+# and after the multiplication
+# TODO: Requires more elaborate streamlining and realization of multiplication
+#  and some elementwise multiplications in hardware
+# TODO: Tanh approximation lacks range analysis for Pow and seems even more
+#  complex regarding streamlining and hardware support. Maybe in FINN the exact
+#  formulation is actually the more efficient one, as the hard-to-evaluate Erf
+#  is calculated by thresholding.
+# @register_activation("gelu")
+class QuantGELU(torch.nn.Module):
+    # Initializes the model and registers the module parameters
+    def __init__(self, bits, approximate='none', **kwargs):
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+
+        # Approximation may only be one of these two options
+        assert approximate in {"none", "tanh"}, \
+            f"Unknown approximation {approximate}"
+
+        # Quantized identity to be placed after the activation
+        self.quant0 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+        # Quantizer placed after the multiplication of the two branches
+        self.quant1 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+        # Selects optional tanh approximation
+        self.approximate = approximate
+
+    # Forward pass of the activation function: Erf/Tanh followed by quantizer
+    def forward(self, x):
+        # Optionally may select the tanh approximation of GELU
+        if self.approximate == "tanh":
+            # Tanh approximation of GELU according to
+            # https://arxiv.org/pdf/1606.08415v5
+            return self.quant1(
+                0.5 * x * (1 + self.quant0(
+                    torch.tanh((2 / math.pi) ** 0.5 * (x + 0.044715 * x ** 3))
+                ))
+            )
+        # Exact formulation of the GELU involving the Cumulative Distribution
+        # Function for Gaussian Distribution according to
+        # https://arxiv.org/pdf/1606.08415v5
+        return self.quant1(
+            0.5 * x * (1 + self.quant0(torch.erf(x * (2 ** -0.5))))
+        )
+
 
 # Quantized SiLU activation
 # Note: Exports as composite x * sigmoid(x) which needs quantizers before and
@@ -665,6 +715,41 @@ class QuantSiLU(torch.nn.Module):
     # Forward pass of the activation function: Sigmoid followed by quantizer
     def forward(self, x):
         return self.quant1(x * self.quant0(torch.sigmoid(x)))
+
+
+# Quantized Mish activation
+# Note: Exports as composite x * tanh(softplus(x)) which needs quantizers before
+# and after the multiplication
+# TODO: When exported results in a Softplus-Tanh-Quant chain, where only the
+#  final Tanh-Quant will be converted to a MultiThreshold. This might be solved
+#  in the future by repeated conversion rounds treating MultiThreshold as a
+#  quantizer and thus collapsing longer Activation-...-Activation-Quant chains.
+# TODO: Requires more elaborate streamlining and realization of multiplication
+#  and some elementwise multiplications in hardware
+# @register_activation("mish")
+class QuantMish(torch.nn.Module):
+    # Initializes the model and registers the module parameters
+    def __init__(self, bits, **kwargs):
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+
+        # Quantized identity to be placed after the activation
+        self.quant0 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+        # Quantizer placed after the multiplication of the two branches
+        self.quant1 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+
+    # Forward pass of the activation function: Softplus-Tanh followed by
+    # quantizer
+    def forward(self, x):
+        return self.quant1(
+            x * self.quant0(torch.tanh(torch.nn.functional.softplus(x)))
+        )
 
 
 # Quantized GLU activation function

@@ -1,6 +1,6 @@
 
 |            Function            | Quant | Export | Conversion | Streamlining | Hardware |    Issues    | PRs |
-|:------------------------------:| :---: | :----: | :--------: | :----------: | :------: | :----------: | :-: |
+|:------------------------------:| :---: | :----: |:----------:| :----------: | :------: | :----------: | :-: |
 |            `Identity`          |   ✅   |   ✅    |     ✅      |      ✅       |    ✅     |              |     |
 |             `ReLU`             |   ✅   |   ✅    |     ✅      |      ✅       |    ✅     |              |     |
 |          `LeakyReLU`           |   ✅   |   ✅    |     ✅      |      ✅       |    ❔     |              |     |
@@ -29,6 +29,6 @@
 |            `Trunc`             |   ✅   |   ❌    |     ❌      |      ❌       |    ❌     |  No Export   |     |
 |          `Tanhshrink`          |   ✅   |   ✅    |     ✅      |      ❌       |    ❌     |  Composite   |     |
 |             `SiLU`             |   ✅   |   ✅    |     ✅      |      ❌       |    ❌     |  Composite   |     |
-|             `GELU`             |   ❌   |   ❌    |     ❌      |      ❌       |    ❌     |  Composite   |     |
-|             `Mish`             |   ❌   |   ❌    |     ❌      |      ❌       |    ❌     |  Composite   |     |
+|             `GELU`             |   ✅   |   ✅    |    ✅(❌)   |      ❌       |    ❌     |  Composite   |     |
+|             `Mish`             |   ✅   |   ✅    |     ❌      |      ❌       |    ❌     |  Composite   |     |
 |             `GLU`              |   ✅   |   ✅    |     ✅      |      ❌       |    ❌     |  Composite   |     |
