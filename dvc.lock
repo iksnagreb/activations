@@ -49,8 +49,8 @@ stages:
     deps:
     - path: build.py
       hash: md5
-      md5: c9f03b51b6c7bdc5301fe6033772f1eb
-      size: 4359
+      md5: 232f128413e6c1c2471944bf50eaeaac
+      size: 4420
     - path: build_steps.py
       hash: md5
       md5: 8900ed30a729c5fb6fc9439e35d67dc9
@@ -97,7 +97,7 @@ stages:
           max_multithreshold_bit_width: 16
           mvau_wwidth_max: 2048
           split_large_fifos: true
-          stop_step: step_streamline
+          stop_step: step_measure_rtlsim_performance
         seed: 12
         shape:
         - 4096
@@ -113,17 +113,17 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 8059d1010a088528c665d71988d2aa24.dir
-      size: 13587758
-      nfiles: 10
+      md5: 8721bc8cd79221371b20cd6e765d34c9.dir
+      size: 30222780
+      nfiles: 95
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: c110efffe8042a579841e928746fa1ac.dir
-      size: 66048
-      nfiles: 4
+      md5: a3d6bf66fe2acab44490e5d54ceb0c66.dir
+      size: 82560
+      nfiles: 5
     - path: verify.py
       hash: md5
       md5: 2cbebda1e941ed0be91b40ea513c8b8d

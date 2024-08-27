@@ -40,6 +40,7 @@ if __name__ == "__main__":
         # Generate and keep the intermediate outputs including reports
         generate_outputs=[
             build_cfg.DataflowOutputType.ESTIMATE_REPORTS,
+            build_cfg.DataflowOutputType.RTLSIM_PERFORMANCE,
             build_cfg.DataflowOutputType.STITCHED_IP,
             build_cfg.DataflowOutputType.PYNQ_DRIVER,
             build_cfg.DataflowOutputType.BITFILE,
