@@ -564,7 +564,7 @@ class QuantRound(torch.nn.Module):
 
 # Quantized sign function
 @register_activation("sign")
-class QuantRound(torch.nn.Module):
+class QuantSign(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, **kwargs):
         # Initialize the PyTorch Module superclass
@@ -656,7 +656,7 @@ class QuantSiLU(torch.nn.Module):
             # Quantize the activation output to signed bits
             act_quant=act_quantizer(bits, _signed=True), **kwargs
         )
-        # Quantizer placed after the subtraction of the two branches
+        # Quantizer placed after the multiplication of the two branches
         self.quant1 = QuantIdentity(
             # Quantize the activation output to signed bits
             act_quant=act_quantizer(bits, _signed=True), **kwargs
@@ -665,6 +665,46 @@ class QuantSiLU(torch.nn.Module):
     # Forward pass of the activation function: Sigmoid followed by quantizer
     def forward(self, x):
         return self.quant1(x * self.quant0(torch.sigmoid(x)))
+
+
+# Quantized GLU activation function
+# Note: Exports as Split-Sigmoid-Mul composition
+# Note: Cannot really be visualized, i.e., plotted due to splitting
+# TODO: Requires more elaborate streamlining and realization of split operator
+#  and some elementwise multiplications in hardware
+# @register_activation("glu")
+class QuantGLU(torch.nn.Module):
+    # Initializes the model and registers the module parameters
+    def __init__(self, bits, dim=-1, **kwargs):
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+
+        # Quantized identity to be placed after the activation
+        self.quant0 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+        # Quantizer placed after the multiplication of the two branches
+        self.quant1 = QuantIdentity(
+            # Quantize the activation output to signed bits
+            act_quant=act_quantizer(bits, _signed=True), **kwargs
+        )
+        # Dimension to split along
+        self.dim = dim
+
+    # Forward pass of the activation function: trunc followed by quantizer
+    def forward(self, x):
+        # Make sure the specified dimension can be split into two equal chunks
+        assert x.shape[self.dim] % 2 == 0, \
+            f"Cannot split input in half along axis {self.dim}: {x.shape}"
+        # Split the tensor along the specified dimension
+        x0, x1 = torch.split(
+            x, split_size_or_sections=x.shape[self.dim] // 2, dim=self.dim
+        )
+        # GLU gates (multiplication) the second part of the split by the sigmoid
+        # activation on the first part of the split. Quantize the Sigmoid and
+        # the final output after multiplication.
+        return self.quant1(x1 * self.quant0(torch.sigmoid(x0)))
 
 
 # TODO: Non-monotonic functions which cannot be expressed as such simple
