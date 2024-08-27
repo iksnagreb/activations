@@ -175,7 +175,7 @@ class QuantSELU(torch.nn.Module):
 
 # Quantized CELU activation function
 # TODO: Requires opset version >= 12 while QONNX still prefers version 11
-# @register_activation("celu")
+@register_activation("celu")
 class QuantCELU(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, alpha=1.0, **kwargs):
