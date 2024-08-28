@@ -50,8 +50,8 @@ build:
   split_large_fifos: true
   #  # Optional: Start the build from a specific step
   #  start_step: "step_quant_activation_to_multithreshold"
-  # Optional: Stop the build after a specific step
-  stop_step: step_measure_rtlsim_performance
+#  # Optional: Stop the build after a specific step
+#  stop_step: step_measure_rtlsim_performance
 # Metrics aggregation configuration
 metrics:
   # Path to the report file to be summarized

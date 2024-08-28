@@ -53,8 +53,8 @@ stages:
       size: 5026
     - path: build_steps.py
       hash: md5
-      md5: 1de3157de9bcbbee2fc14a39f42ab4d2
-      size: 18246
+      md5: c8b2bb22b817c8bdcd136ae69d580cf4
+      size: 18247
     - path: inp.npy
       hash: md5
       md5: f1ed8d4a25875d440da47fa480f84ebf
@@ -97,7 +97,6 @@ stages:
           max_multithreshold_bit_width: 16
           mvau_wwidth_max: 2048
           split_large_fifos: true
-          stop_step: step_measure_rtlsim_performance
         seed: 12
         shape:
         - 4096
@@ -113,9 +112,9 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 0199d0d39e047c9a19aef68a9e811269.dir
-      size: 39073465
-      nfiles: 97
+      md5: b8ad9b90996afefd8ffa030a9a714e6e.dir
+      size: 109691799
+      nfiles: 129
   verify:
     cmd: python -m verify
     deps:
@@ -136,3 +135,30 @@ stages:
       hash: md5
       md5: 5224a3f087dfdd2bec5b236e4205ac3c
       size: 22
+  metrics:
+    cmd: python -m metrics
+    deps:
+    - path: build/
+      hash: md5
+      md5: b8ad9b90996afefd8ffa030a9a714e6e.dir
+      size: 109691799
+      nfiles: 129
+    - path: build/report/post_synth_resources.json
+      hash: md5
+      md5: 2621c981e6e761f144aab47068fcce35
+      size: 982
+    - path: metrics.py
+      hash: md5
+      md5: 027dcb70a77c34f84948bc3d5ee2107f
+      size: 932
+    params:
+      params.yaml:
+        build.output_dir: build
+        metrics:
+          report: build/report/post_synth_resources.json
+          filter: (top)
+    outs:
+    - path: metrics.yaml
+      hash: md5
+      md5: 0ff05b47ed27cddc529402874fdc2dd5
+      size: 69

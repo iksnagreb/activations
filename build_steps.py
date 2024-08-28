@@ -346,7 +346,7 @@ def step_streamline(model: ModelWrapper, _: DataflowBuildConfig):
                 # Move around Mul operations to get Muls and Adds into a better
                 # place for absorbing into MultiThresholds in the next round of
                 # streamlining starting from the top.
-                # TODO: Maybe mode these three to the top of the streamlining
+                # TODO: Maybe move these three to the top of the streamlining
                 #  composition, as the primary intention is to re-absorb some
                 #  biases back into MultiThresholds which should probably happen
                 #  rather early on after export and conversion?
@@ -375,6 +375,7 @@ def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
     return model.transform(InferElementwiseBinaryOperation(
         InferElementwiseBinaryOperation.reject_floats
     ))
+
 
 # Function running the InferReplicateStream transformation
 def step_replicate_streams(model: ModelWrapper, _):
