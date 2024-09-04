@@ -792,7 +792,7 @@ class QuantGLU(torch.nn.Module):
         # GLU gates (multiplication) the second part of the split by the sigmoid
         # activation on the first part of the split. Quantize the Sigmoid and
         # the final output after multiplication.
-        return self.quant1(x1 * self.quant0(torch.sigmoid(x0)))
+        return self.quant1(x0 * self.quant0(torch.sigmoid(x1)))
 
 
 # TODO: Non-monotonic functions which cannot be expressed as such simple
