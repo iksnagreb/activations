@@ -1,3 +1,5 @@
+# Python warning messages
+import warnings
 # Numpy for handling tensors (inputs, outputs, initializers, thresholds, ...)
 import numpy as np
 # QONNX wrapper of ONNX model graphs
@@ -6,12 +8,15 @@ from qonnx.core.modelwrapper import ModelWrapper
 from qonnx.custom_op.registry import getCustomOp
 # QONNX base class for all graph transformations
 from qonnx.transformation.general import Transformation
-# QONNX graph transformations for inferring datatypes and shapes
+# QONNX graph transformations for inferring data types, layouts and shapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.infer_shapes import InferShapes
-
-# Model cleanup transformations as pre-processing for range analysis
-from qonnx.util.cleanup import cleanup_model
+from qonnx.transformation.infer_data_layouts import InferDataLayouts
+# Folds (collapse constant tensors and chains of operations on constant tensors)
+from qonnx.transformation.fold_constants import FoldConstants
+from qonnx.transformation.quant_constant_folding import \
+    FoldTransposeIntoQuantInit
+from finn.transformation.qonnx.fold_quant_weights import FoldQuantWeights
 
 # Range analysis to generate input ranges and scales use to enumerate inputs and
 # outputs of quantized activation functions to generate thresholds
@@ -95,12 +100,18 @@ class QuantActivationToMultiThreshold(Transformation):
 
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
-        # Model needs to be cleaned up, preserving the quantizers
-        # Note: Somehow the non-preserving cleanup in range_analysis causes
-        # problems with constant folding, losing the quantization of weights...
-        model = cleanup_model(model, preserve_qnt_ops=True)
-        # Run range analysis on the model after converting Conv and Gemm to
-        # MatMul and BatchNorm to affine transformations (lowering)
+        # Add shape and datatype annotations throughout all the graph
+        model = model.transform(InferDataTypes())
+        model = model.transform(InferShapes())
+        model = model.transform(InferDataLayouts())
+        # Apply constant folding transformation to clean up the graph before
+        # applying the analysis (these are not part of the included cleanup
+        # transformations)
+        model = model.transform(FoldConstants())
+        model = model.transform(FoldTransposeIntoQuantInit())
+        model = model.transform(FoldQuantWeights())
+        # Generate range information, including integer range information, for
+        # all tensors in the model graph
         range_info, model = range_analysis(
             # Transform and analyze the model: Returns a modified model
             model,
@@ -111,8 +122,15 @@ class QuantActivationToMultiThreshold(Transformation):
             # Produce scaled integer range information, not just floating-point
             # Note: This is necessary for enumerating quantizer output levels
             scaled_int=True,
-            # Perform lowering transformations onf Conv, Gemm and BatchNorm
-            lower_ops=True
+            # Unbroadcast the tensors for some deduplication of ranges and
+            # scales. Without this, range analysis yields per-element
+            # information and thus produces per-element thresholds which need to
+            # be reduced manually later.
+            # Note: Currently disabled as local node/graph execution does not
+            # work on unbroadcast tensors
+            do_unbroadcast=False,
+            # Model needs some cleanup in preparation for the range analysis
+            do_cleanup=True,
         )
 
         # Creates a tensor according to the value info
@@ -171,181 +189,198 @@ class QuantActivationToMultiThreshold(Transformation):
                 # which can be enumerated
                 # TODO: This is not really true, currently this just prevents
                 #  excessively long runtimes for enumerating all floats...
-                if range_info[inp].int_range is not None:
-                    # The output is produced by a quantizer, thus we can always
-                    # assume the integer range
-                    y0, y1 = range_info[out].int_range
-                    # Get the scale and bias for converting the integer ranges
-                    # at the input and output to floats
-                    scale = range_info[out].scale
-                    bias = range_info[out].bias
-                    # Start enumerating the threshold levels at the lower bound
-                    # of the output range
-                    level = y0
-                    # Collect all thresholds as a list
-                    thresholds = []
-                    # Input range minimum and maximum serve as initial
-                    # values for the interval bounds
-                    (x, x1), dx = range_info[inp].range, range_info[inp].scale
-                    # If the input range does not have a know scale for
-                    # enumerating the thresholds, set some default
-                    # Note: Uses half the quantization scale as the step size
-                    # TODO: Make this configurable
-                    dx = 1e-3 if dx is None else 0.5 * dx
-                    # Enumerate the output levels, each will yield a set of
-                    # thresholds covering all dimensions
-                    while np.any(level < y1):
-                        # Evaluate the objective function "f(x) <= level" once
-                        # before entering the loop
+                if range_info[inp].int_range is None:
+                    # Issue a warning to make the user aware of this
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"No input integer range info for {inp}"
+                    )
+                    # Skip to the next candidate activation/quantizer
+                    continue
+                # The output is produced by a quantizer, thus we can always
+                # assume the integer range
+                y0, y1 = range_info[out].int_range
+                # Get the scale and bias for converting the integer ranges
+                # at the input and output to floats
+                scale = range_info[out].scale
+                bias = range_info[out].bias
+                # Start enumerating the threshold levels at the lower bound
+                # of the output range
+                level = y0
+                # Collect all thresholds as a list
+                thresholds = []
+                # Input range minimum and maximum serve as initial
+                # values for the interval bounds
+                (x, x1), dx = range_info[inp].range, range_info[inp].scale
+                # If the input range does not have a know scale for
+                # enumerating the thresholds, set some default
+                # Note: Uses half the quantization scale as the step size
+                # TODO: Make this configurable
+                dx = 1e-3 if dx is None else 0.5 * dx
+                # Enumerate the output levels, each will yield a set of
+                # thresholds covering all dimensions
+                while np.any(level < y1):
+                    # Evaluate the objective function "f(x) <= level" once
+                    # before entering the loop
+                    fx = f(x) <= (scale * level - bias)
+                    # Run over all input levels
+                    while np.any(fx) and np.any(x <= x1):
+                        # Evaluate the objective function "f(x) <= level" at
+                        # the current candidate input
                         fx = f(x) <= (scale * level - bias)
-                        # Run over all input levels
-                        while np.any(fx) and np.any(x <= x1):
-                            # Evaluate the objective function "f(x) <= level" at
-                            # the current candidate input
-                            fx = f(x) <= (scale * level - bias)
-                            # Advance those inputs which are below the output
-                            # level to the next position
-                            x = np.where(fx, x + dx, x)
-                            # Clip at the upper bound of the input range
-                            x = np.where(x >= x1, x1, x)
-                            # Sanitize x to match the input quantization levels
-                            # according to the scale or step size dx
-                            # Note: This accounts for floating-point
-                            # inaccuracies due to repeated addition of +dx
-                            x = np.round(x / dx) * dx
-                        # The thresholds for the level are now stored in x
-                        # Note: The actual threshold is halfway between this and
-                        # the previous step, i.e., -0.5 * dx
-                        thresholds.append(x - 0.5 * dx)
-                        # Move to the next output level along all dimensions and
-                        # clip values at the maximum of the range per dimension
-                        level = np.where(level >= y1, y1, level + 1)
+                        # Advance those inputs which are below the output
+                        # level to the next position
+                        x = np.where(fx, x + dx, x)
+                        # Clip at the upper bound of the input range
+                        x = np.where(x >= x1, x1, x)
+                        # Sanitize x to match the input quantization levels
+                        # according to the scale or step size dx
+                        # Note: This accounts for floating-point
+                        # inaccuracies due to repeated addition of +dx
+                        x = np.round(x / dx) * dx
+                    # The thresholds for the level are now stored in x
+                    # Note: The actual threshold is halfway between this and
+                    # the previous step, i.e., -0.5 * dx
+                    thresholds.append(x - 0.5 * dx)
+                    # Move to the next output level along all dimensions and
+                    # clip values at the maximum of the range per dimension
+                    level = np.where(level >= y1, y1, level + 1)
 
-                    # Get the output bit-with to be produced by the quantizer,
-                    # which determines how many thresholds are needed
-                    # TODO: Add BipolarQuant currently still missing full RA
-                    #  support
-                    # TODO: BipolarQuant implicitly has bits = 1 without
-                    #  initializer tensor
-                    bits = int(model.get_initializer(quant.input[3]))
-                    # Need to pad the thresholds such that there are 2^bits - 1
-                    padding = 2 ** bits - 1 - len(thresholds)
-                    # Get the lower bound of the input range
-                    min_inp = range_info[inp].range[0]
-                    # Fill up thresholds from the left repeating the lower bound
-                    # of the input range as smallest threshold
-                    thresholds = [*(padding * [min_inp]), *thresholds]
+                # Get the output bit-with to be produced by the quantizer,
+                # which determines how many thresholds are needed
+                # TODO: Add BipolarQuant currently still missing full RA
+                #  support
+                # TODO: BipolarQuant implicitly has bits = 1 without
+                #  initializer tensor
+                bits = int(model.get_initializer(quant.input[3]))
+                # Need to pad the thresholds such that there are 2^bits - 1
+                padding = 2 ** bits - 1 - len(thresholds)
+                # Get the lower bound of the input range
+                min_inp = range_info[inp].range[0]
+                # Fill up thresholds from the left repeating the lower bound
+                # of the input range as smallest threshold
+                thresholds = [*(padding * [min_inp]), *thresholds]
 
-                    # Stack thresholds list into the thresholds tensor along the
-                    # final dimension, i.e., steps last
-                    thresholds = np.stack(thresholds, axis=-1)
-                    # Thresholds must be expressible in the two last dimensions
-                    thresholds = thresholds.reshape(*thresholds.shape[-2:])
+                # Stack thresholds list into the thresholds tensor along the
+                # final dimension, i.e., steps last
+                thresholds = np.stack(thresholds, axis=-1)
+                # Reduce the collected thresholds along all but the final
+                # channel dimension, assuming channel last layout here
+                # Note: The final thresholds are expressed in two
+                # dimensions, i.e., channels x number of thresholds
+                # TODO: Is reducing by "min" the correct approach?
+                # TODO: Use the "do_unbroadcast" option of the range
+                #  analysis above?
+                thresholds = np.min(
+                    thresholds.reshape(-1, *thresholds.shape[-2:]), axis=0
+                )
 
-                    # Create new value information for the thresholds tensor
-                    threshold_tensor = oh.make_tensor_value_info(
-                        # Create a unique name for this new tensor
-                        model.make_new_valueinfo_name(),
-                        # Container type is float
-                        TensorProto.FLOAT,
-                        # Get the tensor shape from the numpy array
-                        thresholds.shape
-                    )
-                    # Insert the thresholds tensor information into the graph
-                    graph.value_info.append(threshold_tensor)
-                    # Insert the calculated thresholds as initializer into the
-                    # graph
-                    model.set_initializer(threshold_tensor.name, thresholds)
+                # Create new value information for the thresholds tensor
+                threshold_tensor = oh.make_tensor_value_info(
+                    # Create a unique name for this new tensor
+                    model.make_new_valueinfo_name(),
+                    # Container type is float
+                    TensorProto.FLOAT,
+                    # Get the tensor shape from the numpy array
+                    thresholds.shape
+                )
+                # Insert the thresholds tensor information into the graph
+                graph.value_info.append(threshold_tensor)
+                # Insert the calculated thresholds as initializer into the
+                # graph
+                model.set_initializer(threshold_tensor.name, thresholds)
 
-                    # Check whether this is a signed quantizer
-                    signed = getCustomOp(quant).get_nodeattr("signed")
-                    # Create a multi-threshold operation node to replace the
-                    # quantized activation function
-                    multi_threshold = oh.make_node(
-                        # MultiThreshold optype from QONNX
-                        op_type="MultiThreshold",
-                        # This operator is handled and implemented by QONNX
-                        domain="qonnx.custom_op.general",
-                        # Inputs to the node: Connect to the original input and
-                        # the newly created thresholds tensor
-                        inputs=[inp, threshold_tensor.name],
-                        # Outputs of the node: Connect to a new intermediate
-                        # tensor
-                        outputs=[model.make_new_valueinfo_name()],
-                        # Derive the name of the output datatype based on
-                        # signedness and number of bits required
-                        out_dtype=f"INT{bits}" if signed else f"UINT{bits}",
-                        # If the output is signed, a bias is required to shift
-                        # the unsigned threshold counting to the signed output
-                        # range
-                        out_bias=float(- 2 ** (bits - 1) if signed else 0)
-                    )
+                # Check whether this is a signed quantizer
+                signed = getCustomOp(quant).get_nodeattr("signed")
+                # Create a multi-threshold operation node to replace the
+                # quantized activation function
+                multi_threshold = oh.make_node(
+                    # MultiThreshold optype from QONNX
+                    op_type="MultiThreshold",
+                    # This operator is handled and implemented by QONNX
+                    domain="qonnx.custom_op.general",
+                    # Inputs to the node: Connect to the original input and
+                    # the newly created thresholds tensor
+                    inputs=[inp, threshold_tensor.name],
+                    # Outputs of the node: Connect to a new intermediate
+                    # tensor
+                    outputs=[model.make_new_valueinfo_name()],
+                    # Derive the name of the output datatype based on
+                    # signedness and number of bits required
+                    out_dtype=f"INT{bits}" if signed else f"UINT{bits}",
+                    # If the output is signed, a bias is required to shift
+                    # the unsigned threshold counting to the signed output
+                    # range
+                    out_bias=float(- 2 ** (bits - 1) if signed else 0),
+                    # Inherit the data layout from the input tensor
+                    data_layout="".join(model.get_tensor_layout(inp))
+                )
 
-                    # Create new value information for the output scale tensor
-                    scale_tensor = oh.make_tensor_value_info(
-                        # Create a unique name for this new tensor
-                        model.make_new_valueinfo_name(),
-                        # Container type is float
-                        TensorProto.FLOAT,
-                        # Get the tensor shape from the numpy array
-                        scale.shape
-                    )
-                    # Insert the output scale tensor information into the graph
-                    graph.value_info.append(scale_tensor)
-                    # Insert the scale as initializer into the graph
-                    model.set_initializer(scale_tensor.name, scale)
-                    # Create a Mul node taking the scale factor for converting
-                    # the quantized output back to floating-point
-                    mul = oh.make_node(
-                        # Elementwise multiplication from the ONNX domain
-                        op_type="Mul",
-                        # Connect to the intermediate tensor produced by the
-                        # multi-threshold and to the scale of the quantizer
-                        inputs=[multi_threshold.output[0], scale_tensor.name],
-                        # Produce another intermediate tensor
-                        outputs=[model.make_new_valueinfo_name()],
-                    )
+                # Create new value information for the output scale tensor
+                scale_tensor = oh.make_tensor_value_info(
+                    # Create a unique name for this new tensor
+                    model.make_new_valueinfo_name(),
+                    # Container type is float
+                    TensorProto.FLOAT,
+                    # Get the tensor shape from the numpy array
+                    scale.shape
+                )
+                # Insert the output scale tensor information into the graph
+                graph.value_info.append(scale_tensor)
+                # Insert the scale as initializer into the graph
+                model.set_initializer(scale_tensor.name, scale)
+                # Create a Mul node taking the scale factor for converting
+                # the quantized output back to floating-point
+                mul = oh.make_node(
+                    # Elementwise multiplication from the ONNX domain
+                    op_type="Mul",
+                    # Connect to the intermediate tensor produced by the
+                    # multi-threshold and to the scale of the quantizer
+                    inputs=[multi_threshold.output[0], scale_tensor.name],
+                    # Produce another intermediate tensor
+                    outputs=[model.make_new_valueinfo_name()],
+                )
 
-                    # Create new value information for the output bias tensor
-                    bias_tensor = oh.make_tensor_value_info(
-                        # Create a unique name for this new tensor
-                        model.make_new_valueinfo_name(),
-                        # Container type is float
-                        TensorProto.FLOAT,
-                        # Get the tensor shape from the numpy array
-                        bias.shape
-                    )
-                    # Insert the output bias tensor information into the graph
-                    graph.value_info.append(bias_tensor)
-                    # Insert the scale as initializer into the graph
-                    model.set_initializer(bias_tensor.name, bias)
-                    # Create an Add node taking the bias for converting the
-                    # quantized output back to floating-point
-                    add = oh.make_node(
-                        # Elementwise addition from the ONNX domain
-                        op_type="Add",
-                        # Connect to the intermediate tensor produced by the
-                        # scale multiplication and to the bias of the quantizer
-                        inputs=[mul.output[0], bias_tensor.name],
-                        # Connect to the original output
-                        outputs=[out],
-                    )
-                    # Insert the new nodes into the graph
-                    graph.node.insert(index, multi_threshold)
-                    graph.node.insert(index + 1, mul)
-                    graph.node.insert(index + 2, add)
-                    # Remove the optional activation function
-                    if act is not None:
-                        graph.node.remove(act)
-                    # Always remove the quantizer node
-                    graph.node.remove(quant)
-                    # The graph has been modified and thus the transformation
-                    # needs to be applied again
-                    graph_modified = True
-                    # To allow the graph to "recover" after adding/removing
-                    # nodes and tensors, break her to do cleanup and redo
-                    # annotations
-                    break
+                # Create new value information for the output bias tensor
+                bias_tensor = oh.make_tensor_value_info(
+                    # Create a unique name for this new tensor
+                    model.make_new_valueinfo_name(),
+                    # Container type is float
+                    TensorProto.FLOAT,
+                    # Get the tensor shape from the numpy array
+                    bias.shape
+                )
+                # Insert the output bias tensor information into the graph
+                graph.value_info.append(bias_tensor)
+                # Insert the scale as initializer into the graph
+                model.set_initializer(bias_tensor.name, bias)
+                # Create an Add node taking the bias for converting the
+                # quantized output back to floating-point
+                add = oh.make_node(
+                    # Elementwise addition from the ONNX domain
+                    op_type="Add",
+                    # Connect to the intermediate tensor produced by the
+                    # scale multiplication and to the bias of the quantizer
+                    inputs=[mul.output[0], bias_tensor.name],
+                    # Connect to the original output
+                    outputs=[out],
+                )
+                # Insert the new nodes into the graph
+                graph.node.insert(index, multi_threshold)
+                graph.node.insert(index + 1, mul)
+                graph.node.insert(index + 2, add)
+                # Remove the optional activation function
+                if act is not None:
+                    graph.node.remove(act)
+                # Always remove the quantizer node
+                graph.node.remove(quant)
+                # The graph has been modified and thus the transformation
+                # needs to be applied again
+                graph_modified = True
+                # To allow the graph to "recover" after adding/removing
+                # nodes and tensors, break her to do cleanup and redo
+                # annotations
+                break
         # Redo datatype and shape annotations
         model = model.transform(InferShapes())
         model = model.transform(InferDataTypes())

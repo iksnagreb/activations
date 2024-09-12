@@ -1,6 +1,12 @@
 # YAML for loading experiment configurations
 import yaml
 
+# Numpy for handling arrays
+import numpy as np
+
+# QONNX handling of data layouts
+from qonnx.core.data_layout import get_channels_last_layout_for_ndims
+
 # FINN dataflow builder
 import finn.builder.build_dataflow as build
 import finn.builder.build_dataflow_config as build_cfg
@@ -15,10 +21,12 @@ from utils import seed
 
 # Custom build steps for handling quantizer to multi-threshold conversion
 from build_steps import (
+    set_input_data_layouts,
     quant_activation_to_multithreshold,
     step_streamline,
     step_convert_elementwise_binary_to_hw,
-    step_replicate_streams
+    step_replicate_streams,
+    step_convert_split_to_hw
 )
 
 # Script entrypoint
@@ -32,7 +40,7 @@ if __name__ == "__main__":
 
     # Construct the seed range information of the input tensor
     range_info = RangeInfo(
-        shape=(1, *params["shape"]), range=params["range"]
+        shape=(1, *params["shape"]), range=tuple(np.array([params["range"]]).T)
     )
 
     # Create a configuration for building the scaled dot-product operator to a
@@ -76,6 +84,10 @@ if __name__ == "__main__":
         auto_fifo_depths=True,
         # Build steps to execute
         steps=[
+            # Force the input data layout annotation
+            set_input_data_layouts([
+                get_channels_last_layout_for_ndims(len(params["shape"]) + 1)
+            ]),
             # Custom step to convert all suitable QONNX Quant nodes to
             # Multithreshold nodes via range analysis
             quant_activation_to_multithreshold(range_info),
@@ -94,6 +106,9 @@ if __name__ == "__main__":
             # Convert elementwise binary operations to hardware to support
             # composite activation functions
             step_convert_elementwise_binary_to_hw,
+            # Convert the Split operator (e.g., in GLU) to a hardware custom
+            # operation
+            step_convert_split_to_hw,
             # Convert forks to stream replication to support composite
             # activation functions
             step_replicate_streams,

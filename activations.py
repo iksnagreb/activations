@@ -760,7 +760,7 @@ class QuantMish(torch.nn.Module):
 # TODO: Requires more elaborate streamlining and realization of split operator
 #  and some elementwise multiplications in hardware
 # TODO: Missing streamlining and backend support for Split
-# @register_activation("glu")
+@register_activation("glu")
 class QuantGLU(torch.nn.Module):
     # Initializes the model and registers the module parameters
     def __init__(self, bits, dim=-1, **kwargs):
@@ -770,7 +770,7 @@ class QuantGLU(torch.nn.Module):
         # Quantized identity to be placed after the activation
         self.quant0 = QuantIdentity(
             # Quantize the activation output to signed bits
-            act_quant=act_quantizer(bits, _signed=True), **kwargs
+            act_quant=act_quantizer(bits, _signed=False), **kwargs
         )
         # Quantizer placed after the multiplication of the two branches
         self.quant1 = QuantIdentity(

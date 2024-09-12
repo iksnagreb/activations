@@ -29,6 +29,24 @@ from qonnx.util.range_analysis import RangeInfo
 from quant_activation_to_multithreshold import QuantActivationToMultiThreshold
 
 
+# Sets the data layout of the model input tensors
+def set_input_data_layouts(layouts: list[str]):
+    # Wrap the actual transformation/build step function
+    def step_set_input_data_layouts(
+            model: ModelWrapper, cfg: DataflowBuildConfig
+    ):
+        # Run over all graph inputs joined to the layout annotations given as
+        # parameter
+        for inp, layout in zip(model.graph.input, layouts):
+            # Set the layout annotation
+            model.set_tensor_layout(inp.name, list(layout))
+        # Return the transformed model
+        return model
+
+    # Return the wrapped build step function
+    return step_set_input_data_layouts
+
+
 # Converts quantized activation functions to MultiThreshold instances based on
 # range analysis. Also does various cleanup and lowering transformations as part
 # of the range analysis.
@@ -86,6 +104,8 @@ from finn.transformation.streamline.reorder import (
     MoveAddPastConv,
     MoveScalarMulPastMatMul,
     MoveScalarMulPastConv,
+    MoveScalarLinearPastSplit,  # noqa: Split
+    MoveTransposePastSplit  # noqa: Split
 )
 # Collapse consecutive operations of the same type
 from finn.transformation.streamline.collapse_repeated import (
@@ -94,7 +114,7 @@ from finn.transformation.streamline.collapse_repeated import (
 )
 # FINN transformation converting ONNX nodes to hardware custom operators
 from finn.transformation.fpgadataflow.convert_to_hw_layers import (
-    InferElementwiseBinaryOperation,
+    InferElementwiseBinaryOperation, InferSplitLayer  # noqa: Split
 )
 # Stream replication for outputs with multiple consumers
 from finn.transformation.fpgadataflow.replicate_stream import (
@@ -357,7 +377,11 @@ def step_streamline(model: ModelWrapper, _: DataflowBuildConfig):
                 MoveConstMulPastJoinMul(),
                 # Note: This is essential to allow some Add operations to be
                 # absorbed by the next round's AbsorbSignBiasIntoMultiThreshold
-                MoveMulPastAdd()
+                MoveMulPastAdd(),
+                # Streamlining for Split operations
+                # TODO: Add Concat streamlining here as well
+                MoveScalarLinearPastSplit(),
+                MoveTransposePastSplit()
             ]),
             # Only round and clip after all streamlining transformations have
             # been applied exhaustively.
@@ -381,3 +405,8 @@ def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
 def step_replicate_streams(model: ModelWrapper, _):
     # Properly replicate the stream feeding the query, key and value projections
     return model.transform(InferReplicateStream())
+
+
+# Function converting the Split operator to hardware custom operation
+def step_convert_split_to_hw(model: ModelWrapper, _):
+    return model.transform(InferSplitLayer())
