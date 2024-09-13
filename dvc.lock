@@ -53,8 +53,8 @@ stages:
       size: 5579
     - path: build_steps.py
       hash: md5
-      md5: 7722d251088cc934c520e613b1c390d4
-      size: 19400
+      md5: 125a87ce78fb03cbc858ff562fd8ccea
+      size: 19353
     - path: inp.npy
       hash: md5
       md5: f1ed8d4a25875d440da47fa480f84ebf
@@ -73,8 +73,8 @@ stages:
       size: 16512
     - path: quant_activation_to_multithreshold.py
       hash: md5
-      md5: 248b2fe20de84916953340d6788bc696
-      size: 20014
+      md5: d5346a7b5dd7c0172143c89a4ff60037
+      size: 21956
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -112,8 +112,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 0e99d3204c07cac67b05b03b8f670f38.dir
-      size: 114119028
+      md5: 1836ef873a9e4e51f392a91f017e47df.dir
+      size: 114118727
       nfiles: 131
   verify:
     cmd: python -m verify
@@ -140,8 +140,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 0e99d3204c07cac67b05b03b8f670f38.dir
-      size: 114119028
+      md5: 1836ef873a9e4e51f392a91f017e47df.dir
+      size: 114118727
       nfiles: 131
     - path: build/report/post_synth_resources.json
       hash: md5

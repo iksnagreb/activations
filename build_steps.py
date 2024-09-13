@@ -33,7 +33,7 @@ from quant_activation_to_multithreshold import QuantActivationToMultiThreshold
 def set_input_data_layouts(layouts: list[str]):
     # Wrap the actual transformation/build step function
     def step_set_input_data_layouts(
-            model: ModelWrapper, cfg: DataflowBuildConfig
+            model: ModelWrapper, _: DataflowBuildConfig
     ):
         # Run over all graph inputs joined to the layout annotations given as
         # parameter
@@ -104,8 +104,8 @@ from finn.transformation.streamline.reorder import (
     MoveAddPastConv,
     MoveScalarMulPastMatMul,
     MoveScalarMulPastConv,
-    MoveScalarLinearPastSplit,  # noqa: Split
-    MoveTransposePastSplit  # noqa: Split
+    MoveScalarLinearPastSplit,
+    MoveTransposePastSplit
 )
 # Collapse consecutive operations of the same type
 from finn.transformation.streamline.collapse_repeated import (
@@ -114,7 +114,7 @@ from finn.transformation.streamline.collapse_repeated import (
 )
 # FINN transformation converting ONNX nodes to hardware custom operators
 from finn.transformation.fpgadataflow.convert_to_hw_layers import (
-    InferElementwiseBinaryOperation, InferSplitLayer  # noqa: Split
+    InferElementwiseBinaryOperation, InferSplitLayer
 )
 # Stream replication for outputs with multiple consumers
 from finn.transformation.fpgadataflow.replicate_stream import (

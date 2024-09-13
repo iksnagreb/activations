@@ -11,7 +11,6 @@ from qonnx.transformation.general import Transformation
 # QONNX graph transformations for inferring data types, layouts and shapes
 from qonnx.transformation.infer_datatypes import InferDataTypes
 from qonnx.transformation.infer_shapes import InferShapes
-from qonnx.transformation.infer_data_layouts import InferDataLayouts
 # Folds (collapse constant tensors and chains of operations on constant tensors)
 from qonnx.transformation.fold_constants import FoldConstants
 from qonnx.transformation.quant_constant_folding import \
@@ -92,24 +91,31 @@ class QuantActivationToMultiThreshold(Transformation):
     #  parts of the real numbers.
     # Initializes the conversion by setting a seed range information for the
     # range analysis pass
-    def __init__(self, range_info: RangeInfo = None):
+    def __init__(self, range_info: RangeInfo = None, assume_c_last=False):
         # Initialize the Transformation super class
         super().__init__()
         # Store the seed range information
         self.range_info = range_info
+        # Assumes channel-last layout for threshold generation, otherwise tries
+        # to determine the layout from annotations of rank-dependent defaults
+        # TODO: Currently not used...
+        self.assume_c_last = assume_c_last
 
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
         # Add shape and datatype annotations throughout all the graph
         model = model.transform(InferDataTypes())
         model = model.transform(InferShapes())
-        model = model.transform(InferDataLayouts())
         # Apply constant folding transformation to clean up the graph before
         # applying the analysis (these are not part of the included cleanup
         # transformations)
         model = model.transform(FoldConstants())
         model = model.transform(FoldTransposeIntoQuantInit())
         model = model.transform(FoldQuantWeights())
+        # Redo shape and data type annotations after folding and cleanup might
+        # have changed those
+        model = model.transform(InferDataTypes())
+        model = model.transform(InferShapes())
         # Generate range information, including integer range information, for
         # all tensors in the model graph
         range_info, model = range_analysis(
@@ -261,9 +267,39 @@ class QuantActivationToMultiThreshold(Transformation):
                 # of the input range as smallest threshold
                 thresholds = [*(padding * [min_inp]), *thresholds]
 
+                # First try to consider the tensor layout of the output for
+                # determining the number of output channels
+                layout = model.get_tensor_layout(quant.output[0])
+                # If there is no layout annotation, guess based on rank of the
+                # tensor
+                if layout is None:
+                    # Maps tensor rank to layout annotation
+                    rank_to_layout = {
+                        0: None, 1: "C", 2: "NC", 3: "NWC", 4: "NCHW"
+                    }
+                    # Lookup the layout required by this input shape
+                    layout = rank_to_layout[len(model.get_tensor_shape(inp))]
+                # If there is a layout annotation, use this to determine the
+                # index of the channel dimension
+                if layout is not None and "C" in layout:
+                    # Lookup the index in list
+                    cdim = layout.index("C")
+                # If no layout has been annotated or there is no channel
+                # dimension, fall back to the previous default assumption
+                else:
+                    # Assume the channels to be in axis 1
+                    cdim = 1
+                    # Issue a warning to the user, so they are aware of this
+                    warnings.warn(
+                        f"No meaningful layout for {inp}:"
+                        f" Assuming channel dimension at index {cdim}"
+                    )
+
                 # Stack thresholds list into the thresholds tensor along the
                 # final dimension, i.e., steps last
                 thresholds = np.stack(thresholds, axis=-1)
+                # Rearrange the stacked thresholds to (..., C, Num) layout
+                thresholds = thresholds.swapaxes(cdim, -2)
                 # Reduce the collected thresholds along all but the final
                 # channel dimension, assuming channel last layout here
                 # Note: The final thresholds are expressed in two
@@ -312,8 +348,8 @@ class QuantActivationToMultiThreshold(Transformation):
                     # the unsigned threshold counting to the signed output
                     # range
                     out_bias=float(- 2 ** (bits - 1) if signed else 0),
-                    # Inherit the data layout from the input tensor
-                    data_layout="".join(model.get_tensor_layout(inp))
+                    # Set the data layout inferred or inherited from the input
+                    data_layout="".join(layout)
                 )
 
                 # Create new value information for the output scale tensor
