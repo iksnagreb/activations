@@ -85,10 +85,6 @@ class QuantActivationToMultiThreshold(Transformation):
     #  bit-width of quantizers to be considered, i.e., FINN's
     #  max_multithreshold_bit_width setting.
 
-    # TODO: Add a mechanism to specify a known input range to start the range
-    #  analysis: This might improve the threshold generation but is also
-    #  necessary for some functions, like the log, which are only defined on
-    #  parts of the real numbers.
     # Initializes the conversion by setting a seed range information for the
     # range analysis pass
     def __init__(self, range_info: RangeInfo = None, assume_c_last=False):
@@ -206,6 +202,16 @@ class QuantActivationToMultiThreshold(Transformation):
                 # The output is produced by a quantizer, thus we can always
                 # assume the integer range
                 y0, y1 = range_info[out].int_range
+                # Per-tensor reduction of the output range such that for each of
+                # the output channels (elements) the level have the same meaning
+                # Note: Without this we probably would have to do some
+                # per-channel or even per-element bias correction which
+                # currently is not clear how to derive.
+                # Note: This does not mean we cannot do per-channel thresholds,
+                # which is handled by different range and scale on the input
+                # side of the function, i.e., range_info[inp].
+                y0 = np.full_like(y0, y0.min())
+                y1 = np.full_like(y1, y1.max())
                 # Get the scale and bias for converting the integer ranges
                 # at the input and output to floats
                 scale = range_info[out].scale
@@ -237,13 +243,22 @@ class QuantActivationToMultiThreshold(Transformation):
                         # Advance those inputs which are below the output
                         # level to the next position
                         x = np.where(fx, x + dx, x)
-                        # Clip at the upper bound of the input range
-                        x = np.where(x >= x1, x1, x)
                         # Sanitize x to match the input quantization levels
                         # according to the scale or step size dx
                         # Note: This accounts for floating-point
                         # inaccuracies due to repeated addition of +dx
                         x = np.round(x / dx) * dx
+                        # Clip at the upper bound of the input range
+                        # Note: Could be omitted here as this would be done by
+                        # later round and clip thresholds transformation
+                        x = np.where(x >= x1, x1, x)
+                        # Check whether the last step hits or exceeds the
+                        # quantization levels
+                        if np.all(x[fx] >= x1[fx]):
+                            # Exit here to not end up in an infinite loop
+                            # TODO: Not sure whether this is really necessary
+                            #  are already covered by the loop condition
+                            break
                     # The thresholds for the level are now stored in x
                     # Note: The actual threshold is halfway between this and
                     # the previous step, i.e., -0.5 * dx
@@ -302,13 +317,14 @@ class QuantActivationToMultiThreshold(Transformation):
                 thresholds = thresholds.swapaxes(cdim, -2)
                 # Reduce the collected thresholds along all but the final
                 # channel dimension, assuming channel last layout here
-                # Note: The final thresholds are expressed in two
-                # dimensions, i.e., channels x number of thresholds
+                # Note: Reduces over the ... part of the (..., C, Num) layout
                 # TODO: Is reducing by "min" the correct approach?
-                # TODO: Use the "do_unbroadcast" option of the range
-                #  analysis above?
+                #  Probably: If we would reduce first, i.e., all input, output
+                #  levels, scales and biases before searching the per-element
+                #  thresholds, <= would always yield the smallest, i.e., min, x
+                #  for the corresponding output level y.
                 thresholds = np.min(
-                    thresholds.reshape(-1, *thresholds.shape[-2:]), axis=0
+                    thresholds, axis=tuple(range(thresholds.ndim-2))
                 )
 
                 # Create new value information for the thresholds tensor

@@ -5,7 +5,9 @@ import yaml
 import numpy as np
 
 # QONNX handling of data layouts
-from qonnx.core.data_layout import get_channels_last_layout_for_ndims
+from qonnx.core.data_layout import (
+    get_channels_last_layout_for_ndims, get_channels_first_layout_for_ndims
+)
 
 # FINN dataflow builder
 import finn.builder.build_dataflow as build
@@ -22,6 +24,7 @@ from utils import seed
 # Custom build steps for handling quantizer to multi-threshold conversion
 from build_steps import (
     set_input_data_layouts,
+    step_lower_conv_and_batch_norm,
     quant_activation_to_multithreshold,
     step_streamline,
     step_convert_elementwise_binary_to_hw,
@@ -86,8 +89,13 @@ if __name__ == "__main__":
         steps=[
             # Force the input data layout annotation
             set_input_data_layouts([
-                get_channels_last_layout_for_ndims(len(params["shape"]) + 1)
+                get_channels_first_layout_for_ndims(len(params["shape"]) + 1)
             ]),
+            # Lower Conv to MatMul and BatchNorm to affine parameters
+            # Note: Must be done explicitly this early as there is some weird
+            # behavior in the dynamic lowering of the range analysis pass
+            # somehow missing a scale factor.
+            step_lower_conv_and_batch_norm,
             # Custom step to convert all suitable QONNX Quant nodes to
             # Multithreshold nodes via range analysis
             quant_activation_to_multithreshold(range_info),

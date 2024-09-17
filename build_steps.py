@@ -2,6 +2,13 @@
 import copy
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
+# If we have a convolution with a bias tensors input, QONNX and later FINN
+# expect the bias to be expressed as a standalone Add node following the Conv
+# node.
+from qonnx.transformation.extract_conv_bias import ExtractBiasFromConv
+# Collapses chains of constants into a single constant operation or even
+# initializer tensors.
+from qonnx.transformation.fold_constants import FoldConstants
 # QONNX graph transformations for renaming and cleaning up
 from qonnx.transformation.general import (
     Transformation,
@@ -20,9 +27,18 @@ from finn.builder.build_dataflow_config import (
 )
 # FINN verification after build/graph transformation steps
 from finn.builder.build_dataflow_steps import verify_step
+from qonnx.transformation.lower_convs_to_matmul import LowerConvsToMatMul
+# Transposes the initializer tensors of a Quant node instead of having a
+# standalone Transpose following
+from qonnx.transformation.quant_constant_folding import \
+    FoldTransposeIntoQuantInit
 # Range information structure for seeding the range analysis for converting
 # quantized activations to MultiThreshold
 from qonnx.util.range_analysis import RangeInfo
+
+# Folds quantizers into weight tensor initializers, needed for lowering
+# convolutions to MatMuls
+from finn.transformation.qonnx.fold_quant_weights import FoldQuantWeights
 
 # Converts quantized activation functions to MultiThresholds based on range
 # analysis
@@ -45,6 +61,31 @@ def set_input_data_layouts(layouts: list[str]):
 
     # Return the wrapped build step function
     return step_set_input_data_layouts
+
+
+
+# Lowering transformations converting Conv to MatMul, BatchNorm to affine, etc.
+def step_lower_conv_and_batch_norm(model: ModelWrapper, _: DataflowBuildConfig):
+    # Compose all the lowering transformations
+    return model.transform(ComposedTransformation([
+        # Annotate the graph with shape and data type information
+        InferShapes(),
+        InferDataTypes(),
+        # Moves the bias input to the Conv operator as a separate Add node
+        # behind the Conv node
+        ExtractBiasFromConv(),
+        # Need to do some constant and weight folding first
+        FoldConstants(),
+        FoldTransposeIntoQuantInit(),
+        FoldQuantWeights(),
+        # Annotate the graph with shape and data type information
+        InferShapes(),
+        InferDataTypes(),
+        # # Converts Conv layers to MatMul
+        LowerConvsToMatMul(),
+        # Converts BatchNorm to affine scale and bias
+        BatchNormToAffine(),
+    ]))
 
 
 # Converts quantized activation functions to MultiThreshold instances based on

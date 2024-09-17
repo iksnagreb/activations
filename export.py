@@ -32,6 +32,7 @@ def dummy(activation: str, input_bits: int, bits: int, **kwargs):
         _registry[activation](bits, **kwargs)
     )
 
+
 # Script entrypoint
 if __name__ == "__main__":
     # Load the parameters file
@@ -42,12 +43,14 @@ if __name__ == "__main__":
     # Make PyTorch behave deterministically if possible
     torch.use_deterministic_algorithms(mode=True, warn_only=True)
 
+
     # Generates inputs from the configured range
     def make_inp(num, **kwargs):
         # Get the lower and upper bound of the input range
         x0, x1 = params["range"]
         # Sample random values in [0,1] and scale to the configured range
         return (x1 - x0) * torch.rand(num, *params["shape"], **kwargs) + x0
+
 
     # Construct the dummy model from configuration dictionary
     model = dummy(**params["model"])

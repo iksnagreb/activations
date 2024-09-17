@@ -9,8 +9,8 @@ stages:
       size: 31559
     - path: export.py
       hash: md5
-      md5: 025313409290b683c3d05b93091ddde1
-      size: 3272
+      md5: 317278da6f0e8c7e362cf0523395609d
+      size: 3275
     - path: utils.py
       hash: md5
       md5: f84dabfd10a04e1bb70b41d6be638042
@@ -38,7 +38,7 @@ stages:
       size: 16512
     - path: model.onnx
       hash: md5
-      md5: b8a4c3118c0d8e01977a722b2afee9ae
+      md5: 44aba35a3d80530b5d559d3a0b6d9d2c
       size: 1177
     - path: out.npy
       hash: md5
@@ -49,19 +49,19 @@ stages:
     deps:
     - path: build.py
       hash: md5
-      md5: 722c834168a6ba7ae6d7718f371b8de6
-      size: 5579
+      md5: 5ae5282fab458caf50e86d52d616c6bf
+      size: 5973
     - path: build_steps.py
       hash: md5
-      md5: 125a87ce78fb03cbc858ff562fd8ccea
-      size: 19353
+      md5: 090af10b89eeb06baccd146058fb910e
+      size: 21130
     - path: inp.npy
       hash: md5
       md5: f1ed8d4a25875d440da47fa480f84ebf
       size: 16512
     - path: model.onnx
       hash: md5
-      md5: b8a4c3118c0d8e01977a722b2afee9ae
+      md5: 44aba35a3d80530b5d559d3a0b6d9d2c
       size: 1177
     - path: noctua.sh
       hash: md5
@@ -73,8 +73,8 @@ stages:
       size: 16512
     - path: quant_activation_to_multithreshold.py
       hash: md5
-      md5: d5346a7b5dd7c0172143c89a4ff60037
-      size: 21956
+      md5: b905a295410fec382f8460f9853acc7d
+      size: 23082
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -112,9 +112,9 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 1836ef873a9e4e51f392a91f017e47df.dir
-      size: 114118727
-      nfiles: 131
+      md5: 0810f0020b7ab1e75506c70f870d3169.dir
+      size: 114119766
+      nfiles: 132
   verify:
     cmd: python -m verify
     deps:
@@ -140,9 +140,9 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 1836ef873a9e4e51f392a91f017e47df.dir
-      size: 114118727
-      nfiles: 131
+      md5: 0810f0020b7ab1e75506c70f870d3169.dir
+      size: 114119766
+      nfiles: 132
     - path: build/report/post_synth_resources.json
       hash: md5
       md5: 2621c981e6e761f144aab47068fcce35
