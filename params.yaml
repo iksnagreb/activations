@@ -6,13 +6,16 @@ seed: 12
 # Number of calibration passes to be applied to the model before export
 calibration_passes: 8192
 # Shape of the inputs (excluding the batch dimension)
-shape: [ 4096 ]
+shape:
+- 4096
 # Range of input values
-range: [ -10, +10 ]
+range:
+- 1
+- 10
 # Model configuration section
 model:
   # Name identifying the activation function
-  activation: sigmoid
+  activation: log
   # Number of bits to use at the input
   input_bits: 8
   # Number of bits to use for the quantized activation function
