@@ -27,6 +27,8 @@ def act_quantizer(bits, _signed=True):
         # What is this? Copied from PerTensorFloatScaling*
         #   Probably restricts the scale to be floating-point?
         restrict_scaling_type = RestrictValueType.FP
+        # Some functions, e.g., GLU, seem to need a lot of calibration steps
+        collect_stats_steps = 8192
 
     # Return the derived quantizer configuration
     return Quantizer
