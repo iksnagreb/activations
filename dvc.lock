@@ -22,7 +22,7 @@ stages:
           opset_version: 14
           do_constant_folding: true
         model:
-          activation: sigmoid
+          activation: erf
           input_bits: 8
           bits: 8
         range:
@@ -38,11 +38,11 @@ stages:
       size: 16512
     - path: model.onnx
       hash: md5
-      md5: 24a584f3af0474a9cdd3365db163bdfd
-      size: 1102
+      md5: 48a790b721b8ba9467382e4530e78764
+      size: 1086
     - path: out.npy
       hash: md5
-      md5: 2c4281f3f487cbe59350615102ed7852
+      md5: c1823531321c9ea65c015a4df3b96a2c
       size: 16512
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
@@ -61,15 +61,15 @@ stages:
       size: 16512
     - path: model.onnx
       hash: md5
-      md5: 24a584f3af0474a9cdd3365db163bdfd
-      size: 1102
+      md5: 48a790b721b8ba9467382e4530e78764
+      size: 1086
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: 2c4281f3f487cbe59350615102ed7852
+      md5: c1823531321c9ea65c015a4df3b96a2c
       size: 16512
     - path: quant_activation_to_multithreshold.py
       hash: md5
@@ -112,15 +112,15 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 60327ead894cecb91e9c69e0e110e7e1.dir
-      size: 204553032
+      md5: 96df5202fe9cbb6baf51a8736c096d6d.dir
+      size: 204550745
       nfiles: 132
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 0efc54bced5b510f41b143aa1ae86e8d.dir
+      md5: 50f98f5fa2bb74435bf1b8e6c07b897d.dir
       size: 82560
       nfiles: 5
     - path: verify.py
@@ -140,12 +140,12 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 60327ead894cecb91e9c69e0e110e7e1.dir
-      size: 204553032
+      md5: 96df5202fe9cbb6baf51a8736c096d6d.dir
+      size: 204550745
       nfiles: 132
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 7fcd1e1866fd3f521ee489d9bb968807
+      md5: 7c844af0ecdf28707e7d41bce6586214
       size: 987
     - path: metrics.py
       hash: md5
@@ -160,5 +160,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: b033a6580f97c42d1c036921d8efa3c3
+      md5: d636c03443f6e91f1305c47cded866b3
       size: 70
