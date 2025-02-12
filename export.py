@@ -32,6 +32,43 @@ class OperatorTemplate(torch.nn.Module):
         return eval(self.template)
 
 
+# Scales the tensor x by (optionally per-channel or power-of-two) scales
+def mul(x, power_of_two=False, per_channel=False, _range=4):  # noqa: Shadows
+    # Randomly sample some scale factors (if per-channel, else just a single
+    # scalar)
+    scales = np.random.rand(*((1,) if not per_channel else x.shape[-1:])) # noqa
+    # Scale to range and adapt to single-precision floats: Numpy defaults to
+    # float64...
+    scales = torch.tensor(_range * scales, dtype=torch.float32)
+    # Optionally turn the scales to powers of two
+    if power_of_two:
+        # Round the exponent to the next power of two
+        scales = (2 ** torch.round(torch.log2(scales)))
+    # Scale the input
+    return scales.to(device=x.device) * x
+
+
+# Adds to the tensor x (optionally per-channel or power-of-two) bias
+def add(x, power_of_two=False, per_channel=False, _range=4):  # noqa: Shadows
+    # Randomly sample some biases (if per-channel, else just a single scalar)
+    bias = np.random.rand(*((1,) if not per_channel else x.shape[-1:])) # noqa
+    # Scale to range and adapt to single-precision floats: Numpy defaults to
+    # float64...
+    bias = torch.tensor(_range * bias, dtype=torch.float32)
+    # Optionally turn the bias to powers of two
+    if power_of_two:
+        # Round the exponent to the next power of two
+        bias = (2 ** torch.round(torch.log2(bias)))
+    # Scale the input
+    return bias.to(device=x.device) + x
+
+
+# Affine, i.e., Mul-Add, test pattern function
+def affine(x, **kwargs):
+    # Just forward the same arguments to the Mul and Add pattern
+    return add(mul(x, **kwargs), **kwargs)
+
+
 # Constructs a dummy model for export
 def dummy(activation: str, input_bits: int, bits: int, pattern: str, **kwargs):
     # Create the dummy model as a sequence of input quantizer and quantized
