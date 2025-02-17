@@ -64,7 +64,7 @@ def add(x, power_of_two=False, per_channel=False, _range=4):  # noqa: Shadows
 
 
 # Affine, i.e., Mul-Add, test pattern function
-def affine(x, **kwargs):
+def affine(x, **kwargs):  # noqa: Shadows
     # Just forward the same arguments to the Mul and Add pattern
     return add(mul(x, **kwargs), **kwargs)
 

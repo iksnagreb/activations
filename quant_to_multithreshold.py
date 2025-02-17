@@ -116,7 +116,7 @@ def extract_quant_fusible_subgraph(
         # whatever...
         if n.op_type in SUPPORTED_MONOTONIC_ELTWISE:
             # This only applies if there even is a parameter tensor
-            if init := model.get_initializer(n.input[1]):
+            if (init := model.get_initializer(n.input[1])) is not None:
                 # Per-tensor or per-channel means we have some parameter tensor
                 # which can be broadcast to the channel dimension of the output
                 if not can_broadcast_shapes(
@@ -404,14 +404,24 @@ class QuantToMultiThreshold(Transformation):
                 # them into integer step sizes
                 weights = np.round(weights / dy).astype(np.int32)
 
+                # Sanity check for monotonicity: Non-monotonic functions have
+                # some negative weights
+                if np.any(weights < 0.0):
+                    # Issue a warning to make the user aware of this
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Non-monotonic function near {quant.name}"
+                    )
+                    # Skip to the next candidate activation/quantizer
+                    continue
+
                 # Count how many thresholds there are per channel (counting both
                 # positive and negative directions) to find out how many are
                 # missing
-                padding = 2 ** bits - 1 - np.sum(weights, axis=-1)
+                padding = 2 ** bits - 1 - np.sum(np.abs(weights), axis=-1)
                 # Add back the dimension lost by reducing to be compatible with
                 # the (C, N) layout
                 padding = np.expand_dims(padding, axis=-1)
-                # warnings.warn(f"{padding=}")
                 # Add padding weights from the left to shift the function
                 # upwards
                 weights = np.concatenate((padding, weights), axis=-1)
@@ -445,17 +455,6 @@ class QuantToMultiThreshold(Transformation):
                 ])
                 # Unpack the weight list to unit step weights
                 weights = np.asarray([unpack_weights(ws) for ws in weights])
-
-                # Sanity check for monotonicity: Non-monotonic functions have
-                # some negative weights
-                if np.any(weights < 0.0):
-                    # Issue a warning to make the user aware of this
-                    warnings.warn(
-                        f"{self.__class__.__name__}: Skipping near match: "
-                        f"Non-monotonic function near {quant.name}"
-                    )
-                    # Skip to the next candidate activation/quantizer
-                    continue
 
                 # Create new value information for the thresholds tensor
                 threshold_tensor = oh.make_tensor_value_info(
