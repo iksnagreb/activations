@@ -21,13 +21,15 @@ from build_steps import (
     prepare_graph,
     step_streamline,
     step_convert_elementwise_binary_to_hw,
+    step_convert_floats_to_hw,
     step_convert_lookup_to_hw,
     step_convert_split_concat_to_hw,
     step_convert_depth_wise_to_hw,
     step_replicate_streams,
     step_apply_folding_config,
     node_by_node_cppsim,
-    node_by_node_rtlsim
+    node_by_node_rtlsim,
+    set_rtlsim_backend
 )
 
 # Script entrypoint
@@ -72,6 +74,10 @@ if __name__ == "__main__":
             build_cfg.VerificationStepType.TIDY_UP_PYTHON,
             # Verify the model after generating C++ HLS and applying folding
             build_cfg.VerificationStepType.FOLDED_HLS_CPPSIM,
+            # Verify the model via RTL simulation after IPGen
+            build_cfg.VerificationStepType.NODE_BY_NODE_RTLSIM,
+            # Verify the model via RTL simulation after creating stitched IP
+            build_cfg.VerificationStepType.STITCHED_IP_RTLSIM
         ],
         # File with test inputs for verification
         verify_input_npy="inp.npy",
@@ -89,14 +95,19 @@ if __name__ == "__main__":
         steps=[
             # Prepares the QONNX graph to be consumed by FINN: Cleanup, lowering
             # and Quant to MultiThreshold conversion
-            prepare_graph(range_info=range_info),
+            prepare_graph(
+                range_info=range_info, **params["prepare"]
+            ),
             # Unified exhaustive streamlining of complex model topologies
             # including attention, residuals and splits
-            step_streamline,
+            *([step_streamline] if params["prepare"]["streamline"] else []),
             # Convert the elementwise binary operations to hardware operators.
             # These include for example adding residual branches and positional
             # encoding
             step_convert_elementwise_binary_to_hw,
+            # Converts remaining float operations (elementwise) to hardware
+            # operators
+            step_convert_floats_to_hw,
             # Convert Lookup layers, e.g., token embedding, to hardware custom
             # operators
             step_convert_lookup_to_hw,
@@ -114,6 +125,8 @@ if __name__ == "__main__":
             "step_specialize_layers",
             "step_create_dataflow_partition",
             "step_target_fps_parallelization",
+            # Set RTL simulation to use verilator backend
+            set_rtlsim_backend("pyxsi"),
             # Apply folding config using out custom YAML format
             step_apply_folding_config,
             "step_minimize_bit_width",
@@ -123,10 +136,10 @@ if __name__ == "__main__":
             "step_set_fifo_depths",
             # Run additional node-by-node verification in C++ simulation of the
             # model before creating the stitched IP
-            node_by_node_cppsim,
+            # node_by_node_cppsim,
             # Run additional node-by-node verification in RTL simulation of the
             # model before creating the stitched IP
-            node_by_node_rtlsim,
+            # node_by_node_rtlsim,
             # Finish following default FINN flow
             "step_create_stitched_ip",
             "step_measure_rtlsim_performance",

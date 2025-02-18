@@ -50,12 +50,12 @@ stages:
     deps:
     - path: build.py
       hash: md5
-      md5: b68048bdd873fb2b92a08dce8da9cfa5
-      size: 5887
+      md5: bbe265ebbcc89ab78fee821460661384
+      size: 6548
     - path: build_steps.py
       hash: md5
-      md5: 8b952befa5bd0194408bb47b24082bc2
-      size: 18899
+      md5: 63b391712efd6dba9538cae863645d67
+      size: 21182
     - path: custom/apply_config.py
       hash: md5
       md5: 4c907c16f9d3e2f5377e36f153af40b8
@@ -102,6 +102,9 @@ stages:
           max_multithreshold_bit_width: 16
           mvau_wwidth_max: 2048
           split_large_fifos: true
+        prepare:
+          streamline: true
+          thresholds: true
         seed: 12
         shape:
         - 64
@@ -128,17 +131,17 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 2664551871e8fb77c26cdc3aea4323bb.dir
-      size: 75267083
-      nfiles: 137
+      md5: abeed7561c164aed49196333f1e1a36f.dir
+      size: 77870203
+      nfiles: 159
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 177bd7fa22072fda8dc46c662a608be8.dir
-      size: 1360240
-      nfiles: 8
+      md5: 5c16aff2ef3732a15fab25f60c313647.dir
+      size: 1364266
+      nfiles: 9
     - path: verify.py
       hash: md5
       md5: 2cbebda1e941ed0be91b40ea513c8b8d
@@ -156,13 +159,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 2664551871e8fb77c26cdc3aea4323bb.dir
-      size: 75267083
-      nfiles: 137
+      md5: abeed7561c164aed49196333f1e1a36f.dir
+      size: 77870203
+      nfiles: 159
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 589c7d6a7149bae1c5af8a101ca351e0
-      size: 981
+      md5: e97ddfb13fb8f69f2982c2f7de8d4f3c
+      size: 1322
     - path: metrics.py
       hash: md5
       md5: 027dcb70a77c34f84948bc3d5ee2107f
@@ -176,5 +179,5 @@ stages:
     outs:
     - path: metrics.yaml
       hash: md5
-      md5: 9980f60e12da474c1faae66061f91ba9
+      md5: 66d7522db47323218424212bab551ccb
       size: 68

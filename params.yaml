@@ -25,6 +25,12 @@ export:
   opset_version: 14
   # Apply the constant-folding optimization
   do_constant_folding: true
+# Graph preparation configuration
+prepare:
+  # Enables streamlining transformations
+  streamline: true
+  # Enables multithreshold conversion
+  thresholds: true
 # FINN build configuration
 build:
   # Directory to store the build outputs

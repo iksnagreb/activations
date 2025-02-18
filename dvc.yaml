@@ -57,6 +57,7 @@ stages:
       # file
       - shape
       - seed
+      - prepare
       - build
       # Folding configurations specifying parallelization and FIFO sizes for the
       # layers/operators

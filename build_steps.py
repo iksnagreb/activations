@@ -55,13 +55,20 @@ from finn.transformation.streamline.remove import (
     RemoveIdentityTranspose,
     RemoveIdentityReshape
 )
+# FINN streamlining transformation collapsing repeated operations of the same
+# kind
+from finn.transformation.streamline.collapse_repeated import (
+    CollapseRepeatedReshape
+)
 # Converts (infers) ONNX and QONNX nodes to FINN hardware CustomOps
 from finn.transformation.fpgadataflow.convert_to_hw_layers import (
     InferElementwiseBinaryOperation,
     InferSplitLayer,
     InferConcatLayer,
     InferLookupLayer,
-    InferVectorVectorActivation
+    InferVectorVectorActivation,
+    InferReLUAsElementwiseMax,
+    InferQuantAsFloat2Int
 )
 # Converts fork-nodes to ReplicateStream hardware operator
 from finn.transformation.fpgadataflow.replicate_stream import (
@@ -115,7 +122,7 @@ from quant_to_multithreshold import QuantToMultiThreshold
 #  BatchNorm to Mul and Add operations followed by some necessary cleanup
 # 3. Converts all QONNX Quant nodes to MultiThreshold operations which can
 #  absorb scales and biases during streamlining
-def prepare_graph(range_info: RangeInfo):
+def prepare_graph(range_info: RangeInfo, streamline=True, thresholds=True):
     # Wrap the actual transformation/build step function
     def step_prepare_graph(model: ModelWrapper, cfg: DataflowBuildConfig):
         # Exhaustively apply the set of cleanup transformations
@@ -176,29 +183,50 @@ def prepare_graph(range_info: RangeInfo):
                 model, cfg, "lowered_python", need_parent=False
             )
 
-        # Try the new QONNX Range Analysis based Streamlining to move scales and
-        # biases already to their final place where they could be fused into
-        # multi-thresholds
-        model = model.transform(QONNXStreamline(range_info))
-        # Apply the quantizer to MultiThreshold conversion
-        # Note: This is exhaustive as well as single .transform reapplies as
-        # long as possible.
-        model = model.transform(QuantToMultiThreshold(range_info))
-        # If configured, run a verification of the transformed model on some
-        # sample inputs
-        if (VerificationStepType.QONNX_TO_FINN_PYTHON in
-                cfg._resolve_verification_steps()):  # noqa
-            verify_step(
-                model, cfg, "quant_to_thresholds_ra_python", need_parent=False
-            )
-        # Apply the standard QONNX to FINN conversion step to convert the
-        # remaining quantizers not yet covered by the new range analysis based
-        # method
-        model = model.transform(ConvertQONNXtoFINN(
-            filter_function=default_filter_function_generator(
-                max_multithreshold_bit_width=cfg.max_multithreshold_bit_width
-            )
-        ))
+        # Optional streamlining step before (optionally) converting quantizers
+        # to multi-thresholds
+        if streamline:
+            # Try the new QONNX Range Analysis based Streamlining to move scales
+            # and biases already to their final place where they could be fused
+            # into multi-thresholds
+            model = model.transform(QONNXStreamline(range_info))
+            # If configured, run a verification of the transformed model on some
+            # sample inputs
+            if (VerificationStepType.QONNX_TO_FINN_PYTHON in
+                    cfg._resolve_verification_steps()):  # noqa
+                verify_step(
+                    model, cfg, "qonnx_streamlined_python", need_parent=False
+                )
+
+        # Optional conversion of fused chains of quantized activation functions
+        # to multi-thresholds
+        if thresholds:
+            # Apply the quantizer to MultiThreshold conversion
+            # Note: This is exhaustive as well as single .transform reapplies as
+            # long as possible.
+            model = model.transform(QuantToMultiThreshold(range_info))
+            # If configured, run a verification of the transformed model on some
+            # sample inputs
+            if (VerificationStepType.QONNX_TO_FINN_PYTHON in
+                    cfg._resolve_verification_steps()):  # noqa
+                verify_step(
+                    model, cfg, "quant_to_thresholds_python", need_parent=False
+                )
+            # Apply the standard FINN conversion step to convert the remaining
+            # quantizers not yet covered by the new range analysis based method
+            model = model.transform(ConvertQONNXtoFINN(
+                filter_function=default_filter_function_generator(
+                    cfg.max_multithreshold_bit_width
+                )
+            ))
+
+        # Some extra cleanup steps which are covered by later streamlining, but
+        # we might disable the streamlining but allways needs these...
+        model = model.transform(ComposedTransformation([
+            CollapseRepeatedReshape(),
+            RemoveIdentityReshape()
+        ]))
+
         # If configured, run a verification of the transformed model on some
         # sample inputs
         if (VerificationStepType.QONNX_TO_FINN_PYTHON in
@@ -247,6 +275,18 @@ def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
     return model.transform(InferElementwiseBinaryOperation(
         InferElementwiseBinaryOperation.reject_output_dequant
     ))
+
+
+# Function running the transformations to convert float elementwise operations
+# to their hardware implementations
+def step_convert_floats_to_hw(model: ModelWrapper, _):
+    # Handle float ReLU and non-threshold quantization operators
+    return model.transform(
+        ComposedTransformation([
+            InferReLUAsElementwiseMax(),
+            InferQuantAsFloat2Int()
+        ])
+    )
 
 
 # Converts Split and Concat operations to hardware custom operators
@@ -344,6 +384,9 @@ def node_by_node_cppsim(model: ModelWrapper, cfg: DataflowBuildConfig):
     # Load the parent model to pass to verification execution
     parent_model = ModelWrapper(parent)
 
+    # Make sure to not execute this as RTL simulation...
+    parent_model.set_metadata_prop("exec_mode", "")
+
     # Reshape the input/output to match the model
     inp = inp.reshape(parent_model.get_tensor_shape(model.graph.input[0].name))
     out = out.reshape(parent_model.get_tensor_shape(model.graph.output[0].name))
@@ -393,6 +436,9 @@ def node_by_node_rtlsim(model: ModelWrapper, cfg: DataflowBuildConfig):
     # Load the parent model to pass to verification execution
     parent_model = ModelWrapper(parent)
 
+    # Make sure to not execute this as stitched RTL simulation...
+    parent_model.set_metadata_prop("exec_mode", "")
+
     # Reshape the input/output to match the model
     inp = inp.reshape(parent_model.get_tensor_shape(model.graph.input[0].name))
     out = out.reshape(parent_model.get_tensor_shape(model.graph.output[0].name))
@@ -410,3 +456,16 @@ def node_by_node_rtlsim(model: ModelWrapper, cfg: DataflowBuildConfig):
     np.savez(f"{verification_output}/verify_rtlsim_{result}.npz", **context)
     # Return the original, unmodified model
     return original
+
+
+# Selected the RTL simulation backend for the whole model
+def set_rtlsim_backend(backend: str):
+    # Wrap the actual transformation step
+    def step_set_rtlsim_backend(model: ModelWrapper, _):
+        # Set backend via metadate property
+        model.set_metadata_prop("rtlsim_backend", backend)
+        # Return modified model
+        return model
+
+    # Return the actual transformation step
+    return step_set_rtlsim_backend
