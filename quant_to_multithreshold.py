@@ -99,8 +99,12 @@ def can_broadcast_shapes(lhs, rhs):
 # Extracts the complete subgraph chain of fusible elementwise operations
 # leading up to a quantizer
 def extract_quant_fusible_subgraph(
-        node: NodeProto, model: ModelWrapper, cdim: int = -1
+        node: NodeProto, model: ModelWrapper, cdim: int = -1, quant_filter=None
 ):
+    # Default to dummy filter accepting any node
+    if quant_filter is None:
+        quant_filter = (lambda _0, _1: True)
+
     # Checks whether an operation can be fused into the quantization operation
     # when converting to thresholds
     def is_fusible(n: NodeProto):
@@ -134,7 +138,7 @@ def extract_quant_fusible_subgraph(
         return False
 
     # We must start on some supported quantization operation
-    if node.op_type in SUPPORTED_QUANTIZERS:
+    if node.op_type in SUPPORTED_QUANTIZERS and quant_filter(model, node):
         # We already know the quantizer has one actual, i.e., non-parameter,
         # input for which we want to track the producer chain
         quant_inp = node.input[0]
@@ -219,22 +223,20 @@ def evaluate_subgraph(subgraph: list[NodeProto], model: ModelWrapper, x):
 
 # Converts supported quantized activation functions to MultiThreshold
 class QuantToMultiThreshold(Transformation):
-    # TODO: Add configuration options setting the fall-back step size "dx" for
-    #  enumerating non-integer input ranges and limiting the maximum output
-    #  bit-width of quantizers to be considered, i.e., FINN's
-    #  max_multithreshold_bit_width setting.
 
     # Initializes the conversion by setting a seed range information for the
     # range analysis pass
-    def __init__(self, range_info: RangeInfo = None, assume_c_last=False):
+    def __init__(self, range_info: RangeInfo = None, enum_rescale=0.0625,
+                 quant_filter=None):
         # Initialize the Transformation super class
         super().__init__()
         # Store the seed range information
         self.range_info = range_info
-        # Assumes channel-last layout for threshold generation, otherwise tries
-        # to determine the layout from annotations of rank-dependent defaults
-        # TODO: Currently not used...
-        self.assume_c_last = assume_c_last
+        # Extra scale applied when enumerating the inputs
+        self.enum_rescale = enum_rescale
+        # Filter function to control which quantizers are converted to
+        # thresholds: None means no additional filter
+        self.quant_filter = quant_filter
 
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
@@ -314,7 +316,9 @@ class QuantToMultiThreshold(Transformation):
 
             # Try to match a convertible subgraph of quantizers, activations and
             # monotonic operations
-            subgraph = list(extract_quant_fusible_subgraph(node, model))
+            subgraph = list(extract_quant_fusible_subgraph(
+                node, model, cdim=cdim, quant_filter=self.quant_filter
+            ))
             # Skip if no quantizer is present
             if not subgraph:
                 # Softly skip without warning, transformation just does not
@@ -356,7 +360,8 @@ class QuantToMultiThreshold(Transformation):
                 # Note: Strictly, the sampling theorem does not apply here: This
                 # is neither band-limited (perfect steps require infinite
                 # frequencies) nor continuous (floats are not reals)
-                dx = 0.0625 * (2.5e-4 if dx is None else np.asarray(dx).min())
+                dx = self.enum_rescale * (
+                    2.5e-4 if dx is None else np.asarray(dx).min())
                 # Derive the number of, i.e., sample rate, from the input scale
                 # and range information
                 steps = int(np.round((x1.max() - x0.min())) / dx)
@@ -473,6 +478,7 @@ class QuantToMultiThreshold(Transformation):
 
                 # Check whether this is a signed quantizer
                 signed = getCustomOp(quant).get_nodeattr("signed")
+                narrow = int(getCustomOp(quant).get_nodeattr("narrow"))
                 # Create a multi-threshold operation node to replace the
                 # quantized activation function
                 multi_threshold = oh.make_node(
@@ -492,7 +498,8 @@ class QuantToMultiThreshold(Transformation):
                     # If the output is signed, a bias is required to shift
                     # the unsigned threshold counting to the signed output
                     # range
-                    out_bias=float(- 2 ** (bits - 1) if signed else 0),
+                    out_bias=float(
+                        (- 2 ** (bits - 1) + narrow) if signed else 0),
                     # Set the data layout inferred or inherited from the input
                     data_layout="".join(layout)
                 )
