@@ -32,45 +32,93 @@ class OperatorTemplate(torch.nn.Module):
         return eval(self.template)
 
 
-# Scales the tensor x by (optionally per-channel or power-of-two) scales
-def mul(x, power_of_two=False, per_channel=False, _range=4):  # noqa: Shadows
-    # Randomly sample some scale factors (if per-channel, else just a single
-    # scalar)
-    scales = np.random.rand(*((1,) if not per_channel else x.shape[-1:])) # noqa
-    # Scale to range and adapt to single-precision floats: Numpy defaults to
-    # float64...
-    scales = torch.tensor(_range * scales, dtype=torch.float32)
-    # Optionally turn the scales to powers of two
-    if power_of_two:
-        # Round the exponent to the next power of two
-        scales = (2 ** torch.round(torch.log2(scales)))
-    # Scale the input
-    return scales.to(device=x.device) * x
+# Elementwise affine transformation test pattern
+class Affine(torch.nn.Module):
+    # Initializes the affine transformation
+    def __init__(self, shape, cdim, power_of_two, per_channel, range):  # noqa
+        # Initialize the PyTorch Module superclass
+        super().__init__()
+        # Remember arguments for lazy initialization
+        self.power_of_two = power_of_two
+        self.per_channel = per_channel
+        self.range = range
+        self.cdim = cdim
+        # Adjust the parameter shape depending on whether this is per-tensor or
+        # per-channel
+        self.shape = np.ones_like(shape)
+        self.shape[cdim] = shape[cdim] if per_channel else 1
+        # Create a scale and bias parameter
+        self.scale = torch.nn.Parameter(torch.empty(tuple(self.shape)))
+        self.bias = torch.nn.Parameter(torch.empty(tuple(self.shape)))
+        # Reset all parameters to the initialization range
+        self.reset_parameters()
+
+    # Resets/initializes the parameter tensors
+    def reset_parameters(self):
+        # Initialize the parameters from a uniform distribution the configured
+        # range
+        torch.nn.init.uniform_(self.scale, *self.range)
+        torch.nn.init.uniform_(self.bias, *self.range)
+
+    # Forward pass applying scale and bias to the input
+    def forward(self, x):  # noqa: Shadows x
+        # Optionally turn the parameters to powers of two
+        if self.power_of_two:
+            # Round the exponent to the next power of two
+            scale = (2 ** torch.round(torch.log2(self.scale)))
+            bias = (2 ** torch.round(torch.log2(self.bias)))
+            # Apply scale and bias to the input
+            return scale * x + bias
+        # Apply scale and bias to the input
+        return self.scale * x + self.bias
 
 
-# Adds to the tensor x (optionally per-channel or power-of-two) bias
-def add(x, power_of_two=False, per_channel=False, _range=4):  # noqa: Shadows
-    # Randomly sample some biases (if per-channel, else just a single scalar)
-    bias = np.random.rand(*((1,) if not per_channel else x.shape[-1:])) # noqa
-    # Scale to range and adapt to single-precision floats: Numpy defaults to
-    # float64...
-    bias = torch.tensor(_range * bias, dtype=torch.float32)
-    # Optionally turn the bias to powers of two
-    if power_of_two:
-        # Round the exponent to the next power of two
-        bias = (2 ** torch.round(torch.log2(bias)))
-    # Scale the input
-    return bias.to(device=x.device) + x
+# Lazy version of affine elementwise transformation inferring the shape at the
+# first forward pass
+class LazyAffine(torch.nn.modules.lazy.LazyModuleMixin, Affine):  # noqa: lazy
+    # Once initialized, this will become Affine as defined above
+    cls_to_become = Affine
+    # Parameter tensors of the Affine are uninitialized
+    scale: torch.nn.UninitializedParameter
+    bias: torch.nn.UninitializedParameter
 
+    # Initializes the affine transformation
+    def __init__(self, cdim, power_of_two, per_channel, range):  # noqa
+        # Initialize the PyTorch Module superclass
+        super().__init__((1,), cdim, power_of_two, per_channel, range)
+        # Register uninitialized parameter tensors
+        self.scale = torch.nn.UninitializedParameter()
+        self.bias = torch.nn.UninitializedParameter()
 
-# Affine, i.e., Mul-Add, test pattern function
-def affine(x, **kwargs):  # noqa: Shadows
-    # Just forward the same arguments to the Mul and Add pattern
-    return add(mul(x, **kwargs), **kwargs)
+    # Resets/initializes the parameter tensors
+    def reset_parameters(self):
+        # If this has already been initialized, delegate to the actual
+        # implementation
+        if not self.has_uninitialized_params():
+            super().reset_parameters()
+
+    # Initializes/Materializes the uninitialized parameter tensor given some
+    # sample input tensor to infer the dimensions
+    def initialize_parameters(self, x):  # noqa: Shadows x
+        # Only materialize the parameter tensor if it is not yet initialized
+        if self.has_uninitialized_params():
+            # Do not accumulate gradient information from initialization
+            with torch.no_grad():
+                # Adjust the parameter shape depending on whether this is
+                # per-tensor or per-channel
+                self.shape = np.ones_like(x.shape)
+                if self.per_channel:
+                    self.shape[self.cdim] = x.shape[self.cdim]
+                # Materialize the scale and bias parameter tensors
+                self.scale.materialize(tuple(self.shape))
+                self.bias.materialize(tuple(self.shape))
+                # Properly initialize the parameters by resetting the values
+                self.reset_parameters()
 
 
 # Constructs a dummy model for export
-def dummy(activation: str, input_bits: int, bits: int, pattern: str, **kwargs):
+def dummy(activation: str, input_bits: int, bits: int, pattern: str,
+          affine: dict, **kwargs):
     # Create the dummy model as a sequence of input quantizer and quantized
     # activation function
     return torch.nn.Sequential(
@@ -87,6 +135,9 @@ def dummy(activation: str, input_bits: int, bits: int, pattern: str, **kwargs):
         # Add some generic test-pattern template in front of the activation
         # function: This should be a chain of fusible operations
         OperatorTemplate(pattern),
+        # Add configurable elementwise affine transformation to test per-channel
+        # vs. per-tensor and power of two vs. float parameters
+        LazyAffine(**affine),
         # Add the quantized activation functions as configured
         _registry[activation](bits, **kwargs)
     )

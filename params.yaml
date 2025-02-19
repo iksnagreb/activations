@@ -12,13 +12,28 @@ range: [ -10, +10 ]
 # Model configuration section
 model:
   # Name identifying the activation function
-  activation: sigmoid
+  activation: relu
   # Test pattern for operator fusion during multi-threshold conversion
-  pattern: (0.2 * torch.relu(3.7 * x + 0.4) - 0.1) / 1.3
+  pattern: x
   # Number of bits to use at the input
   input_bits: 8
   # Number of bits to use for the quantized activation function
   bits: 8
+  # Parameters of the elementwise affine transformation inserted in front to the
+  # quantized activation function
+  affine:
+    # Make scales and biases powers of two
+    power_of_two: false
+    # Per-tensor vs. per-channel affine scale and bias
+    per_channel: false
+    # Range to sample the scale and bias from
+    # Note: There seems to be some issue with threshold conversion if there are
+    # scales close to zero, probably in relation to the RA-annotated scale?
+    # Note: Power of two scales/biases < 1 is unclear how to realize this right
+    # now
+    range: [ 1, 4 ]
+    # Dimension to be considered as channel if per-channel
+    cdim: -1
 # Model to ONNX export hyperparameters
 export:
   # Version of the default ONNX opset
@@ -31,6 +46,9 @@ prepare:
   streamline: true
   # Enables multithreshold conversion
   thresholds: true
+  # Extra scaling applied to input ranges for threshold conversion to trade off
+  # conversion/rounding errors vs. conversion runtime and memory consumption
+  rescale: 0.03125
 # FINN build configuration
 build:
   # Directory to store the build outputs

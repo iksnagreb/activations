@@ -122,7 +122,9 @@ from quant_to_multithreshold import QuantToMultiThreshold
 #  BatchNorm to Mul and Add operations followed by some necessary cleanup
 # 3. Converts all QONNX Quant nodes to MultiThreshold operations which can
 #  absorb scales and biases during streamlining
-def prepare_graph(range_info: RangeInfo, streamline=True, thresholds=True):
+def prepare_graph(
+        range_info: RangeInfo, rescale: float, streamline=True, thresholds=True
+):
     # Wrap the actual transformation/build step function
     def step_prepare_graph(model: ModelWrapper, cfg: DataflowBuildConfig):
         # Exhaustively apply the set of cleanup transformations
@@ -204,7 +206,7 @@ def prepare_graph(range_info: RangeInfo, streamline=True, thresholds=True):
             # Apply the quantizer to MultiThreshold conversion
             # Note: This is exhaustive as well as single .transform reapplies as
             # long as possible.
-            model = model.transform(QuantToMultiThreshold(range_info))
+            model = model.transform(QuantToMultiThreshold(range_info, rescale))
             # If configured, run a verification of the transformed model on some
             # sample inputs
             if (VerificationStepType.QONNX_TO_FINN_PYTHON in
@@ -212,13 +214,6 @@ def prepare_graph(range_info: RangeInfo, streamline=True, thresholds=True):
                 verify_step(
                     model, cfg, "quant_to_thresholds_python", need_parent=False
                 )
-            # Apply the standard FINN conversion step to convert the remaining
-            # quantizers not yet covered by the new range analysis based method
-            model = model.transform(ConvertQONNXtoFINN(
-                filter_function=default_filter_function_generator(
-                    cfg.max_multithreshold_bit_width
-                )
-            ))
 
         # Some extra cleanup steps which are covered by later streamlining, but
         # we might disable the streamlining but allways needs these...

@@ -382,6 +382,8 @@ class QuantToMultiThreshold(Transformation):
                 edges = convolve1d(
                     ys, np.array([+1, -1]), axis=0, origin=-1, mode="nearest"
                 )
+                # Minimum per-channel reduction keeping the batch size
+                xs = np.min(xs, axis)
                 # The thresholds are the xs corresponding to the edges, i.e.,
                 # where the convolution detected a step
                 thresholds = xs[np.unique(np.where(edges)[0])]
@@ -429,12 +431,11 @@ class QuantToMultiThreshold(Transformation):
                 padding = np.expand_dims(padding, axis=-1)
                 # Add padding weights from the left to shift the function
                 # upwards
-                weights = np.concatenate((padding, weights), axis=-1)
-                # Add padding weights from the left to shift the function
-                # upwards
-                thresholds = np.concatenate(
-                    (np.full_like(padding, -np.inf), thresholds), axis=-1
-                )
+                weights = np.concatenate((weights, padding), axis=-1)
+                # Derive threshold padding from the right
+                padding = np.full_like(padding, +np.inf, dtype=np.float32)
+                # Add padding to the thresholds
+                thresholds = np.concatenate((thresholds, padding), axis=-1)
 
                 # Steps of size >1 should be expressed as repeated steps of
                 # size =1 to comply with the hardware backend
