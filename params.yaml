@@ -33,7 +33,7 @@ model:
     # now
     range: [ 1, 4 ]
     # Dimension to be considered as channel if per-channel
-    cdim: -1
+    cdim: 1
 # Model to ONNX export hyperparameters
 export:
   # Version of the default ONNX opset

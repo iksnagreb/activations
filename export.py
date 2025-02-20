@@ -43,10 +43,13 @@ class Affine(torch.nn.Module):
         self.per_channel = per_channel
         self.range = range
         self.cdim = cdim
+        # Assume scalar shape if no shape is given
+        self.shape = [1, ]
         # Adjust the parameter shape depending on whether this is per-tensor or
         # per-channel
-        self.shape = np.ones_like(shape)
-        self.shape[cdim] = shape[cdim] if per_channel else 1
+        if shape is not None:
+            self.shape = np.ones_like(shape)
+            self.shape[cdim] = shape[cdim] if per_channel else 1
         # Create a scale and bias parameter
         self.scale = torch.nn.Parameter(torch.empty(tuple(self.shape)))
         self.bias = torch.nn.Parameter(torch.empty(tuple(self.shape)))
@@ -85,7 +88,7 @@ class LazyAffine(torch.nn.modules.lazy.LazyModuleMixin, Affine):  # noqa: lazy
     # Initializes the affine transformation
     def __init__(self, cdim, power_of_two, per_channel, range):  # noqa
         # Initialize the PyTorch Module superclass
-        super().__init__((1,), cdim, power_of_two, per_channel, range)
+        super().__init__(None, cdim, power_of_two, per_channel, range)
         # Register uninitialized parameter tensors
         self.scale = torch.nn.UninitializedParameter()
         self.bias = torch.nn.UninitializedParameter()

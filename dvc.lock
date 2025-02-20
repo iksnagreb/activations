@@ -9,8 +9,8 @@ stages:
       size: 32641
     - path: export.py
       hash: md5
-      md5: 70baf2aed572928af85a89ed139aa63f
-      size: 8363
+      md5: 5903f7af8be92ff3682796a771c143ce
+      size: 8479
     - path: utils.py
       hash: md5
       md5: f84dabfd10a04e1bb70b41d6be638042
@@ -32,7 +32,7 @@ stages:
             range:
             - 1
             - 4
-            cdim: -1
+            cdim: 1
         range:
         - -10
         - 10
@@ -85,8 +85,8 @@ stages:
       size: 384
     - path: quant_to_multithreshold.py
       hash: md5
-      md5: 2fcbc98f89a4c034226287daacb1835e
-      size: 28352
+      md5: 71b3d181b1d34c6b99e1bcd548d45a6f
+      size: 28371
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -139,8 +139,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 06a8a7d18bc9eafe42dec5f103f4e1be.dir
-      size: 75521684
+      md5: 82f0f5ceef3bce307f9e56c4a0be0e2e.dir
+      size: 75521736
       nfiles: 159
   verify:
     cmd: python -m verify
@@ -167,8 +167,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 06a8a7d18bc9eafe42dec5f103f4e1be.dir
-      size: 75521684
+      md5: 82f0f5ceef3bce307f9e56c4a0be0e2e.dir
+      size: 75521736
       nfiles: 159
     - path: build/report/post_synth_resources.json
       hash: md5

@@ -32,7 +32,7 @@ from qonnx.core.onnx_exec import execute_node
 from qonnx.util.onnx import valueinfo_to_tensor
 
 # Protobuf onnx graph node type
-from onnx import NodeProto, TensorProto, TensorShapeProto
+from onnx import NodeProto, TensorProto
 # Helper for assembling ONNX nodes, tensors and graphs
 from onnx import helper as oh
 
@@ -170,22 +170,21 @@ def _evaluate_subgraph(subgraph: list[NodeProto], model: ModelWrapper, x):
     # Names of all tensors produced or consumed by any operation in the subgraph
     tensors = set([x for node in subgraph for x in [*node.input, *node.output]])
 
-    # Insert correctly sized batch dimension
-    batch_dim = TensorShapeProto.Dimension()
-    batch_dim.dim_value = x.shape[0]
-
     # Add a batch dimension to all connecting tensors, scalar parameters should
     # be broadcastable
     for name in tensors:
-        vi = model.get_tensor_valueinfo(name)
-        # Do not touch initializer, these should be broadcastable
-        if model.get_initializer(name) is None:
-            vi.type.tensor_type.shape.dim.insert(0, batch_dim)
+        # Force subgraph evaluation to Batch x Channel layout
+        model.set_tensor_shape(name, [x.shape[0], x.shape[1]])
+        # Reshape the initializer tensor if there is any
+        if (init := model.get_initializer(name)) is not None:
+            # Squeezing should be ok as we already assume initializer to be
+            # broadcastable
+            model.set_initializer(name, init.squeeze())
 
     # Creates a tensor according to the value info
     def tensor_placeholder(tensor_name):
         # If the tensor has some initializer fill with constant parameter
-        if (init := model.get_initializer(tensor_name)) is not None:
+        if (init := model.get_initializer(tensor_name)) is not None:  # noqa
             return init
         # If there is no initializers we need some placeholder for dynamic
         # inputs and outputs
@@ -292,7 +291,8 @@ class QuantToMultiThreshold(Transformation):
             if layout is None:
                 # Maps tensor rank to layout annotation
                 rank_to_layout = {
-                    0: None, 1: "C", 2: "NC", 3: "NWC", 4: "NCHW"
+                    # TODO: 5-dimensional layout just for some dummy test-case
+                    0: None, 1: "C", 2: "NC", 3: "NWC", 4: "NCHW", 5: "N_CHW"
                 }
                 # Lookup the layout required by this input shape
                 layout = rank_to_layout[
@@ -354,6 +354,15 @@ class QuantToMultiThreshold(Transformation):
                 x0 = np.broadcast_to(x0, model.get_tensor_shape(inp))
                 x1 = np.broadcast_to(x1, model.get_tensor_shape(inp))
 
+                # We do not handle reversed indexing here
+                cdim = x0.ndim + cdim if cdim < 0 else cdim
+                # Reduces over all but the channel axes
+                axis = tuple(i for i in range(x0.ndim) if i not in {cdim})
+
+                # Reduce the bounds of the range to simulate: Upper/Lower bound
+                x0 = np.min(x0, axis)
+                x1 = np.max(x1, axis)
+
                 # If the input range does not have a know scale for enumerating
                 # the inputs, set some default. Sample at a higher rate
                 # necessary aliasing and rounding effects.
@@ -370,20 +379,11 @@ class QuantToMultiThreshold(Transformation):
                 xs = np.linspace(x0, x1, steps, dtype=np.float32)
                 # Evaluate the subgraph over the whole input range in batch mode
                 ys = evaluate_subgraph(subgraph, model, xs)
-                # We do not handle reversed indexing here
-                cdim = ys.ndim + cdim if cdim < 0 else cdim + 1
-                # Reduces the function output over all but the batch and channel
-                # axes
-                axis = tuple(i for i in range(ys.ndim) if i not in {0, cdim})
-                # Minimum per-channel reduction keeping the batch size
-                ys = np.min(ys, axis)
                 # Compute the derivative of the quantized function interpreting
                 # it as a 1d image
                 edges = convolve1d(
                     ys, np.array([+1, -1]), axis=0, origin=-1, mode="nearest"
                 )
-                # Minimum per-channel reduction keeping the batch size
-                xs = np.min(xs, axis)
                 # The thresholds are the xs corresponding to the edges, i.e.,
                 # where the convolution detected a step
                 thresholds = xs[np.unique(np.where(edges)[0])]
