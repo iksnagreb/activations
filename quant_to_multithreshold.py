@@ -292,7 +292,7 @@ class QuantToMultiThreshold(Transformation):
                 # Maps tensor rank to layout annotation
                 rank_to_layout = {
                     # TODO: 5-dimensional layout just for some dummy test-case
-                    0: None, 1: "C", 2: "NC", 3: "NWC", 4: "NCHW", 5: "N_CHW"
+                    0: None, 1: "C", 2: "NC", 3: "NWC", 4: "NHWC", 5: "N_CHW"
                 }
                 # Lookup the layout required by this input shape
                 layout = rank_to_layout[
