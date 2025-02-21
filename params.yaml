@@ -19,6 +19,10 @@ model:
   input_bits: 8
   # Number of bits to use for the quantized activation function
   bits: 8
+  # Restrict scaling type of quantizers: FP vs. POWER_OF_TWO
+  restrict_scaling_type: FP
+  # Further (optional) arguments passed to the activation function
+  activation_kwargs: { }
   # Parameters of the elementwise affine transformation inserted in front to the
   # quantized activation function
   affine:
@@ -74,6 +78,8 @@ build:
   mvau_wwidth_max: 2048
   # FIFO nodes with depth larger than 32768 will be split
   split_large_fifos: true
+  # Applies bit-width minimization: Weights and activations/accumulators
+  minimize_bit_width: true
   #  # Optional: Start the build from a specific step
   #  start_step: "step_quant_activation_to_multithreshold"
 #  # Optional: Stop the build after a specific step

@@ -9,8 +9,8 @@ stages:
       size: 32641
     - path: export.py
       hash: md5
-      md5: 5903f7af8be92ff3682796a771c143ce
-      size: 8479
+      md5: 9810529d55511c62c8f8eed8f7299b99
+      size: 8534
     - path: utils.py
       hash: md5
       md5: f84dabfd10a04e1bb70b41d6be638042
@@ -26,6 +26,8 @@ stages:
           pattern: x
           input_bits: 8
           bits: 8
+          restrict_scaling_type: FP
+          activation_kwargs: {}
           affine:
             power_of_two: false
             per_channel: false
@@ -109,6 +111,7 @@ stages:
           max_multithreshold_bit_width: 16
           mvau_wwidth_max: 2048
           split_large_fifos: true
+          minimize_bit_width: true
         prepare:
           streamline: true
           thresholds: true
@@ -139,8 +142,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 5087bd211b2c0a2885642a065630e9f5.dir
-      size: 75521727
+      md5: 9a6fe790e6dd9837ad2cb370cfd0a089.dir
+      size: 75521732
       nfiles: 159
   verify:
     cmd: python -m verify
@@ -167,8 +170,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 5087bd211b2c0a2885642a065630e9f5.dir
-      size: 75521727
+      md5: 9a6fe790e6dd9837ad2cb370cfd0a089.dir
+      size: 75521732
       nfiles: 159
     - path: build/report/post_synth_resources.json
       hash: md5

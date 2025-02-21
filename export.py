@@ -121,7 +121,7 @@ class LazyAffine(torch.nn.modules.lazy.LazyModuleMixin, Affine):  # noqa: lazy
 
 # Constructs a dummy model for export
 def dummy(activation: str, input_bits: int, bits: int, pattern: str,
-          affine: dict, **kwargs):
+          affine: dict, activation_kwargs: dict, **kwargs):
     # Create the dummy model as a sequence of input quantizer and quantized
     # activation function
     return torch.nn.Sequential(
@@ -129,7 +129,7 @@ def dummy(activation: str, input_bits: int, bits: int, pattern: str,
         QuantIdentity(
             # Quantize the input to signed representation of configured bits
             # Note: ReLU needs to be unsigned as outputs are >= 0
-            act_quant=act_quantizer(input_bits, _signed=True),
+            act_quant=act_quantizer(input_bits, _signed=True), **kwargs
         ),
         # We need to put something here to break the fusible chain to not
         # collapse all of our test model into a single threshold operation as
@@ -142,7 +142,7 @@ def dummy(activation: str, input_bits: int, bits: int, pattern: str,
         # vs. per-tensor and power of two vs. float parameters
         LazyAffine(**affine),
         # Add the quantized activation functions as configured
-        _registry[activation](bits, **kwargs)
+        _registry[activation](bits, **activation_kwargs, **kwargs)
     )
 
 
