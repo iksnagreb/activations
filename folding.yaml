@@ -36,5 +36,29 @@ defaults:
     # Resource type for FIFOs when impl_style is vivado
     #   Options: auto, block, distributed, ultra
     ram_style: distributed
+  # Addition of two inputs (constants or streamed) implemented via HLS
+  ElementwiseAdd_hls:
+    # Type of memory to be used for internal buffer storage and/or constant
+    # parameter tensors
+    #   Options: auto, block, distributed, ultra
+    ram_style: distributed
+  # Multiplication of two inputs (constants or streamed) implemented via HLS
+  ElementwiseMul_hls:
+    # Type of memory to be used for internal buffer storage and/or constant
+    # parameter tensors
+    #   Options: auto, block, distributed, ultra
+    ram_style: distributed
+  # Minimum of two inputs (constants or streamed) implemented via HLS
+  ElementwiseMinimum_hls:
+    # Type of memory to be used for internal buffer storage and/or constant
+    # parameter tensors
+    #   Options: auto, block, distributed, ultra
+    ram_style: distributed
+  # Maximum of two inputs (constants or streamed) implemented via HLS
+  ElementwiseMaximum_hls:
+    # Type of memory to be used for internal buffer storage and/or constant
+    # parameter tensors
+    #   Options: auto, block, distributed, ultra
+    ram_style: distributed
 # Individual, named node-specific configurations here
 # ...

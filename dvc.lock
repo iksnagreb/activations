@@ -132,6 +132,14 @@ stages:
           StreamingFIFO_rtl:
             impl_style: rtl
             ram_style: distributed
+          ElementwiseAdd_hls:
+            ram_style: distributed
+          ElementwiseMul_hls:
+            ram_style: distributed
+          ElementwiseMinimum_hls:
+            ram_style: distributed
+          ElementwiseMaximum_hls:
+            ram_style: distributed
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -142,7 +150,7 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 9a6fe790e6dd9837ad2cb370cfd0a089.dir
+      md5: e07702ae68573198e7bf5def77a91d7c.dir
       size: 75521732
       nfiles: 159
   verify:
@@ -170,7 +178,7 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 9a6fe790e6dd9837ad2cb370cfd0a089.dir
+      md5: e07702ae68573198e7bf5def77a91d7c.dir
       size: 75521732
       nfiles: 159
     - path: build/report/post_synth_resources.json
