@@ -21,6 +21,8 @@ model:
   bits: 8
   # Restrict scaling type of quantizers: FP vs. POWER_OF_TWO
   restrict_scaling_type: FP
+  # Restrict quantization to a narrow range or not
+  narrow_range: false
   # Further (optional) arguments passed to the activation function
   activation_kwargs: { }
   # Parameters of the elementwise affine transformation inserted in front to the

@@ -25,7 +25,8 @@ from qonnx.transformation.remove import RemoveIdentityOps
 
 # Range analysis to generate input ranges and scales use to enumerate inputs and
 # outputs of quantized activation functions to generate thresholds
-from qonnx.util.range_analysis import range_analysis, RangeInfo
+from qonnx.util.range_analysis import range_analysis, RangeInfo, \
+    unbroadcast_tensor
 # Executes an ONNX node considering QONNX domain operations as well
 from qonnx.core.onnx_exec import execute_node
 # Utility for creating a tensor according to the description in ONNX value info
@@ -382,7 +383,7 @@ class QuantToMultiThreshold(Transformation):
                 # Compute the derivative of the quantized function interpreting
                 # it as a 1d image
                 edges = convolve1d(
-                    ys, np.array([+1, -1]), axis=0, origin=-1, mode="nearest"
+                    ys, np.array([+1, -1]), axis=0, origin=0, mode="nearest"
                 )
                 # The thresholds are the xs corresponding to the edges, i.e.,
                 # where the convolution detected a step
@@ -394,6 +395,16 @@ class QuantToMultiThreshold(Transformation):
                 # Get the quantizer node terminating the chain of operators as
                 # this holds some extra information such as the target bit-width
                 quant = subgraph[-1]
+
+                # Check whether this is a signed quantizer
+                signed = getCustomOp(quant).get_nodeattr("signed")
+                narrow = int(getCustomOp(quant).get_nodeattr("narrow"))
+
+                # Shift the thresholds half a step to the right. The actual
+                # threshold is halfway between this and the next step.
+                # TODO: Why is this only required for narrow range?
+                thresholds += (1 - narrow) * 0.5 * dx
+
                 # Get the output bit-with to be produced by the quantizer,
                 # which determines how many thresholds are needed
                 bits = int(model.get_initializer(quant.input[3]))
@@ -427,8 +438,8 @@ class QuantToMultiThreshold(Transformation):
                 # missing
                 padding = 2 ** bits - 1 - np.sum(np.abs(weights), axis=-1)
                 # Add back the dimension lost by reducing to be compatible with
-                # the (C, N) layout
-                padding = np.expand_dims(padding, axis=-1)
+                # the (C, N) layout. Padding should respect narrow range...
+                padding = np.expand_dims(padding - narrow, axis=-1)
                 # Add padding weights from the left to shift the function
                 # upwards
                 weights = np.concatenate((weights, padding), axis=-1)
@@ -462,6 +473,11 @@ class QuantToMultiThreshold(Transformation):
                 # Unpack the weight list to unit step weights
                 weights = np.asarray([unpack_weights(ws) for ws in weights])
 
+                # Optimization: Unbroadcast from per-channel to per-tensor
+                # thresholds if all channels turn out to be identical
+                thresholds = unbroadcast_tensor(thresholds)
+                weights = unbroadcast_tensor(weights)
+
                 # Create new value information for the thresholds tensor
                 threshold_tensor = oh.make_tensor_value_info(
                     # Create a unique name for this new tensor
@@ -477,9 +493,6 @@ class QuantToMultiThreshold(Transformation):
                 # graph
                 model.set_initializer(threshold_tensor.name, thresholds)
 
-                # Check whether this is a signed quantizer
-                signed = getCustomOp(quant).get_nodeattr("signed")
-                narrow = int(getCustomOp(quant).get_nodeattr("narrow"))
                 # Create a multi-threshold operation node to replace the
                 # quantized activation function
                 multi_threshold = oh.make_node(
