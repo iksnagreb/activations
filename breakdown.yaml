@@ -10,20 +10,20 @@ DWC:
 Elementwise:
   BRAM_18K: 0
   BRAM_36K: 0
-  COUNT: 0
-  DSP: 0
-  FF: 0
-  LUT: 0
+  COUNT: 7
+  DSP: 11
+  FF: 2331
+  LUT: 1677
   SRL: 0
   URAM: 0
 FIFO:
   BRAM_18K: 0
   BRAM_36K: 0
-  COUNT: 3
+  COUNT: 8
   DSP: 0
-  FF: 108
-  LUT: 58
-  SRL: 0
+  FF: 470
+  LUT: 313
+  SRL: 32
   URAM: 0
 MAC:
   BRAM_18K: 0
@@ -44,11 +44,11 @@ SWG:
   SRL: 0
   URAM: 0
 Thresholding:
-  BRAM_18K: 3
+  BRAM_18K: 0
   BRAM_36K: 0
-  COUNT: 2
+  COUNT: 0
   DSP: 0
-  FF: 878
-  LUT: 372
-  SRL: 35
+  FF: 0
+  LUT: 0
+  SRL: 0
   URAM: 0
