@@ -188,15 +188,26 @@ stages:
       size: 1324
     - path: metrics.py
       hash: md5
-      md5: 027dcb70a77c34f84948bc3d5ee2107f
-      size: 932
+      md5: 0b9fed96ceef46e1e5d246fc86971aab
+      size: 1706
     params:
       params.yaml:
         build.output_dir: build
         metrics:
           report: build/report/post_synth_resources.json
           filter: (top)
+          breakdown:
+            MAC: MV|VV
+            Elementwise: Elementwise
+            Thresholding: Thresholding
+            FIFO: StreamingFIFO
+            DWC: DataWidthConverter
+            SWG: ConvolutionInputGenerator
     outs:
+    - path: breakdown.yaml
+      hash: md5
+      md5: 57cd08c96da62efaba6979ac5c8cf9fc
+      size: 560
     - path: metrics.yaml
       hash: md5
       md5: f693fe01b41ca90c51bd8180ca9400ce

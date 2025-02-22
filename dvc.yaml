@@ -94,6 +94,10 @@ stages:
       - metrics.yaml:
           # Keep the metrics tracked by git
           cache: false
+      # Per category metrics breakdown
+      - breakdown.yaml:
+          # Keep the metrics tracked by git
+          cache: false
   # Stage checking the verification output of the FINN dataflow build
   verify:
     # Command summarizing verification outputs from the build output products

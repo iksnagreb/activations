@@ -93,3 +93,18 @@ metrics:
   report: build/report/post_synth_resources.json
   # Filter the report rows
   filter: (top)
+  # Aggregate metrics breakdown by categories: Each category can specify a regex
+  # pattern applied as a filter to the report rows, similar to the report above
+  breakdown:
+    # Multiply accumulate operations: Matrix-Vector and Vector-Vector
+    MAC: "MV|VV"
+    # Elementwise operations: Mul, Add, Maximum, etc.
+    Elementwise: "Elementwise"
+    # Multi-threshold operations: Activation and Quantization
+    Thresholding: "Thresholding"
+    # FIFO buffers inserted between layers
+    FIFO: "StreamingFIFO"
+    # Data-Width Converters inserted to adapt over different SIMD/PE
+    DWC: "DataWidthConverter"
+    # Sliding-Window Generators feeding convolutions
+    SWG: "ConvolutionInputGenerator"

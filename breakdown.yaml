@@ -1,0 +1,54 @@
+DWC:
+  BRAM_18K: 0
+  BRAM_36K: 0
+  COUNT: 0
+  DSP: 0
+  FF: 0
+  LUT: 0
+  SRL: 0
+  URAM: 0
+Elementwise:
+  BRAM_18K: 0
+  BRAM_36K: 0
+  COUNT: 0
+  DSP: 0
+  FF: 0
+  LUT: 0
+  SRL: 0
+  URAM: 0
+FIFO:
+  BRAM_18K: 0
+  BRAM_36K: 0
+  COUNT: 3
+  DSP: 0
+  FF: 108
+  LUT: 58
+  SRL: 0
+  URAM: 0
+MAC:
+  BRAM_18K: 0
+  BRAM_36K: 0
+  COUNT: 0
+  DSP: 0
+  FF: 0
+  LUT: 0
+  SRL: 0
+  URAM: 0
+SWG:
+  BRAM_18K: 0
+  BRAM_36K: 0
+  COUNT: 0
+  DSP: 0
+  FF: 0
+  LUT: 0
+  SRL: 0
+  URAM: 0
+Thresholding:
+  BRAM_18K: 3
+  BRAM_36K: 0
+  COUNT: 2
+  DSP: 0
+  FF: 878
+  LUT: 372
+  SRL: 35
+  URAM: 0
