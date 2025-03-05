@@ -19,10 +19,10 @@ Elementwise:
 FIFO:
   BRAM_18K: 0
   BRAM_36K: 0
-  COUNT: 3
+  COUNT: 2
   DSP: 0
-  FF: 108
-  LUT: 58
+  FF: 40
+  LUT: 23
   SRL: 0
   URAM: 0
 MAC:
@@ -44,11 +44,11 @@ SWG:
   SRL: 0
   URAM: 0
 Thresholding:
-  BRAM_18K: 3
+  BRAM_18K: 1
   BRAM_36K: 0
-  COUNT: 2
+  COUNT: 1
   DSP: 0
-  FF: 878
-  LUT: 372
-  SRL: 35
+  FF: 241
+  LUT: 89
+  SRL: 16
   URAM: 0

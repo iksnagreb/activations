@@ -221,13 +221,18 @@ def evaluate_subgraph(subgraph: list[NodeProto], model: ModelWrapper, x):
     return np.concatenate(chunks, axis=0)
 
 
+# how many steps (samples) we allow at most for threshold conversion
+# 8 GB memory / 8 bytes per sample (since linspace internally uses float64)
+default_max_steps_for_conversion = (8 * (2 ** 30)) / 8  
+
 # Converts supported quantized activation functions to MultiThreshold
 class QuantToMultiThreshold(Transformation):
 
     # Initializes the conversion by setting a seed range information for the
     # range analysis pass
     def __init__(self, range_info: RangeInfo = None, enum_rescale=0.0625,
-                 quant_filter=None):
+                 quant_filter=None,
+                 max_steps_for_conversion=default_max_steps_for_conversion):
         # Initialize the Transformation super class
         super().__init__()
         # Store the seed range information
@@ -237,6 +242,9 @@ class QuantToMultiThreshold(Transformation):
         # Filter function to control which quantizers are converted to
         # thresholds: None means no additional filter
         self.quant_filter = quant_filter
+        # Maximum number of allowed steps for threshold conversion
+        # subgraphs with input range greater than this will be skipped
+        self.max_steps_for_conversion = max_steps_for_conversion
 
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
@@ -375,6 +383,14 @@ class QuantToMultiThreshold(Transformation):
                 # Derive the number of, i.e., sample rate, from the input scale
                 # and range information
                 steps = int(np.round((x1.max() - x0.min())) / dx)
+                # TODO: Too many steps cause excessive memory utilization...
+                if steps > self.max_steps_for_conversion:
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping conversion: "
+                        f"{inp} has too wide range: f{steps} >"
+                        f" f{self.max_steps_for_conversion}"
+                    )
+                    continue
                 # Sample the whole input range to evaluate the entire subgraph
                 # in batch mode
                 xs = np.linspace(x0, x1, steps, dtype=np.float32)
