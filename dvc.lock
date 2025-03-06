@@ -30,7 +30,7 @@ stages:
           narrow_range: false
           activation_kwargs: {}
           affine:
-            per_channel: false
+            per_channel: true
             range:
             - 1
             - 4
@@ -48,11 +48,11 @@ stages:
       size: 384
     - path: model.onnx
       hash: md5
-      md5: 74e0206dc400a270d636b49ba98cecba
-      size: 1474
+      md5: 16d4c8a11a5af2b8ca7d6bb40bad7e43
+      size: 1982
     - path: out.npy
       hash: md5
-      md5: 4600dbc2f14824a87728c3c2ff678b75
+      md5: cbae3f8c8126069cc252d266fd83a38f
       size: 384
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
@@ -75,15 +75,15 @@ stages:
       size: 384
     - path: model.onnx
       hash: md5
-      md5: 74e0206dc400a270d636b49ba98cecba
-      size: 1474
+      md5: 16d4c8a11a5af2b8ca7d6bb40bad7e43
+      size: 1982
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: 4600dbc2f14824a87728c3c2ff678b75
+      md5: cbae3f8c8126069cc252d266fd83a38f
       size: 384
     - path: quant.onnx
       hash: md5
@@ -154,16 +154,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: e9ee860c4f2aa45565cd7adaa797ea32.dir
-      size: 70825204
+      md5: db908775ecf2a1ac7166b6660db0156f.dir
+      size: 72944326
       nfiles: 136
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 32ca240b5244c5b012c997cd2d79e94a.dir
-      size: 34280
+      md5: d0dfd55a1cc51f4c5d6d4c23e0d293e8.dir
+      size: 420344
       nfiles: 7
     - path: verify.py
       hash: md5
@@ -182,13 +182,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: e9ee860c4f2aa45565cd7adaa797ea32.dir
-      size: 70825204
+      md5: db908775ecf2a1ac7166b6660db0156f.dir
+      size: 72944326
       nfiles: 136
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 7ba0b72f07375af0e96b2561d3c87dbb
-      size: 982
+      md5: 04f7df0203e63e0fad483b6c5307ea3e
+      size: 984
     - path: metrics.py
       hash: md5
       md5: 0b9fed96ceef46e1e5d246fc86971aab
@@ -209,9 +209,9 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: e7faed77765244887fc97eb8d9d8b3e0
-      size: 558
+      md5: b345a656428b2af8e200d0b532b6bed8
+      size: 559
     - path: metrics.yaml
       hash: md5
-      md5: 5c006a2d9d17d65ec0a5487857b7dd9d
-      size: 68
+      md5: 1fc9628e1390dbed6f180c5fdde8d06e
+      size: 69
