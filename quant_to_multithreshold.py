@@ -418,8 +418,13 @@ class QuantToMultiThreshold(Transformation):
 
                 # Shift the thresholds half a step to the right. The actual
                 # threshold is halfway between this and the next step.
-                # TODO: Why is this only required for narrow range?
-                thresholds += (1 - narrow) * 0.5 * dx
+                thresholds += 0.5 * dx
+
+                # Back to the real RA annotated scale to have the right rounding
+                # behavior to prevent later mismatch
+                dx = range_info[inp].scale
+                # Sanitize thresholds by rounding to the RA annotated scale
+                thresholds = dx * np.round(thresholds / dx)
 
                 # Get the output bit-with to be produced by the quantizer,
                 # which determines how many thresholds are needed

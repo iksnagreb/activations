@@ -39,11 +39,12 @@ class OperatorTemplate(torch.nn.Module):
 # Elementwise affine transformation test pattern
 class Affine(torch.nn.Module):
     # Initializes the affine transformation
-    def __init__(self, shape, cdim, power_of_two, per_channel, range):  # noqa
+    def __init__(self, shape, cdim, restrict_scaling_type, per_channel,  # noqa
+                 range, **kwargs):  # noqa
         # Initialize the PyTorch Module superclass
         super().__init__()
         # Remember arguments for lazy initialization
-        self.power_of_two = power_of_two
+        self.restrict_scaling_type = restrict_scaling_type
         self.per_channel = per_channel
         self.range = range
         self.cdim = cdim
@@ -53,12 +54,31 @@ class Affine(torch.nn.Module):
         # per-channel
         if shape is not None:
             self.shape = np.ones_like(shape)
-            self.shape[cdim] = shape[cdim] if per_channel else 1
+            self.shape[cdim] = shape[cdim] if self.per_channel else 1
         # Create a scale and bias parameter
         self.scale = torch.nn.Parameter(torch.empty(tuple(self.shape)))
         self.bias = torch.nn.Parameter(torch.empty(tuple(self.shape)))
         # Reset all parameters to the initialization range
         self.reset_parameters()
+
+    # Implements the restrict_scaling_type behavior
+    def restrict(self, value):
+        # Select the restriction function from dictionary by RestrictValueType
+        # enumerations
+        return {
+            # No restriction for float scales
+            "FP": lambda _x: _x,
+            # Log-floats essentially behave the same way, no restrictions
+            # Note: The learning behavior should be different, but here we don't
+            # care, we only model the final, exported behavior.
+            "LOG_FP": lambda _x: _x,
+            # Restrict scales to integers by simple rounding
+            # Note: We don not model proper rounding modes here, as we only care
+            # for the final exported behavior.
+            "INT": lambda _x: torch.round(_x),
+            # Restrict scales to powers of two by rounding the exponent
+            "POWER_OF_TWO": lambda _x: 2 ** _x.log2().round()
+        }[self.restrict_scaling_type](value)
 
     # Resets/initializes the parameter tensors
     def reset_parameters(self):
@@ -69,15 +89,8 @@ class Affine(torch.nn.Module):
 
     # Forward pass applying scale and bias to the input
     def forward(self, x):  # noqa: Shadows x
-        # Optionally turn the parameters to powers of two
-        if self.power_of_two:
-            # Round the exponent to the next power of two
-            scale = (2 ** torch.round(torch.log2(self.scale)))  # noqa: Shadows
-            bias = (2 ** torch.round(torch.log2(self.bias)))  # noqa: Shadows
-            # Apply scale and bias to the input
-            return scale * x + bias
         # Apply scale and bias to the input
-        return self.scale * x + self.bias
+        return self.restrict(self.scale) * x + self.restrict(self.bias)
 
 
 # Lazy version of affine elementwise transformation inferring the shape at the
@@ -90,9 +103,11 @@ class LazyAffine(torch.nn.modules.lazy.LazyModuleMixin, Affine):  # noqa: lazy
     bias: torch.nn.UninitializedParameter
 
     # Initializes the affine transformation
-    def __init__(self, cdim, power_of_two, per_channel, range):  # noqa
+    def __init__(self, cdim, restrict_scaling_type, per_channel, range,  # noqa
+                 **kwargs):
         # Initialize the PyTorch Module superclass
-        super().__init__(None, cdim, power_of_two, per_channel, range)
+        super().__init__(None, cdim, restrict_scaling_type, per_channel, range,
+                         **kwargs)
         # Register uninitialized parameter tensors
         self.scale = torch.nn.UninitializedParameter()
         self.bias = torch.nn.UninitializedParameter()
@@ -148,7 +163,7 @@ def dummy(activation: str, input_bits: int, bits: int, pattern: str,
             OperatorTemplate(pattern),
             # Add configurable elementwise affine transformation to test
             # per-channel vs. per-tensor and power of two vs. float parameters
-            LazyAffine(**affine),
+            LazyAffine(**affine, **kwargs),
             # Add the quantized activation functions as configured
             _registry[activation](bits, **activation_kwargs, **kwargs)
         )
@@ -164,6 +179,7 @@ if __name__ == "__main__":
     seed(params["seed"])
     # Make PyTorch behave deterministically if possible
     torch.use_deterministic_algorithms(mode=True, warn_only=True)
+
 
     # Generates inputs from the configured range
     def make_inp(num, **kwargs):

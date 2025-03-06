@@ -48,6 +48,7 @@ stages:
       # The model export produced by the setup stage: This triggers rerunning
       # this stage when the model configuration changes
       - model.onnx
+      - quant.onnx
       # Input/Output pair in numpy format for verification during the build
       - inp.npy
       - out.npy

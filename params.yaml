@@ -28,8 +28,6 @@ model:
   # Parameters of the elementwise affine transformation inserted in front to the
   # quantized activation function
   affine:
-    # Make scales and biases powers of two
-    power_of_two: false
     # Per-tensor vs. per-channel affine scale and bias
     per_channel: false
     # Range to sample the scale and bias from

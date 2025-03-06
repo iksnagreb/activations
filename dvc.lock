@@ -9,8 +9,8 @@ stages:
       size: 32641
     - path: export.py
       hash: md5
-      md5: 81b984a88727c773e20b6eda45f93b7a
-      size: 9818
+      md5: 2242691f83e9c9e33f0b562c5914bc9b
+      size: 10571
     - path: utils.py
       hash: md5
       md5: f84dabfd10a04e1bb70b41d6be638042
@@ -30,7 +30,6 @@ stages:
           narrow_range: false
           activation_kwargs: {}
           affine:
-            power_of_two: false
             per_channel: false
             range:
             - 1
@@ -86,10 +85,14 @@ stages:
       hash: md5
       md5: 4600dbc2f14824a87728c3c2ff678b75
       size: 384
+    - path: quant.onnx
+      hash: md5
+      md5: 5d2257abe21a8cfcd090633d83cc565e
+      size: 423
     - path: quant_to_multithreshold.py
       hash: md5
-      md5: 17ebd6bd2f59bb96666c2e650c6abf9b
-      size: 29881
+      md5: c1bf1bbfe79900a4ae4da3a52d2da15d
+      size: 30112
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -151,15 +154,15 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 76a9d49d31784215947eefdc9d889cb1.dir
-      size: 70825171
+      md5: e9ee860c4f2aa45565cd7adaa797ea32.dir
+      size: 70825204
       nfiles: 136
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 2953e01719d193469cfb24a88f0b4939.dir
+      md5: 32ca240b5244c5b012c997cd2d79e94a.dir
       size: 34280
       nfiles: 7
     - path: verify.py
@@ -179,8 +182,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 76a9d49d31784215947eefdc9d889cb1.dir
-      size: 70825171
+      md5: e9ee860c4f2aa45565cd7adaa797ea32.dir
+      size: 70825204
       nfiles: 136
     - path: build/report/post_synth_resources.json
       hash: md5
