@@ -24,6 +24,7 @@ stages:
     outs:
       # The dummy model exported as ONNX
       - model.onnx
+      - quant.onnx
       # Input/Output pair in numpy format for verification during the build
       - inp.npy
       - out.npy

@@ -54,6 +54,10 @@ stages:
       hash: md5
       md5: 4600dbc2f14824a87728c3c2ff678b75
       size: 384
+    - path: quant.onnx
+      hash: md5
+      md5: 5d2257abe21a8cfcd090633d83cc565e
+      size: 423
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
