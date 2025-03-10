@@ -7,20 +7,17 @@ args=(
   -S seed="12,345,657"
   # Input shapes to "scale up" the benchmarked model. Only test two-dimensional
   # layouts NxC, these should already cover all interesting behavior
-  -S shape="[64],[128],[256]"
+  -S shape="[256]"
   # Sweep some larger bit-widths at the input - in a real model we would get
   # these larger bit-widths out of some matrix multiplication
   -S model.input_bits="8,16,32"
   # Sweep smaller bit-widths actually testing the quantized activation functions
   -S model.bits="2,4,8"
-  # Restrict quantizers to powers of two: This is already covered by affine
-  # scales
-  -S model.restrict_scaling_type="POWER_OF_TWO"
+  # FP or POWER_OF_TWO for both, quantizers and affine scales
+  -S model.restrict_scaling_type="FP"
   # There are probably no insights to gain from comparing narrow range vs.
   # non-narrow range
   -S model.narrow_range="false"
-  # Test both, float and power-of-two scales for the affine scales
-  -S model.affine.power_of_two="false,true"
   # Test per-channel and per-tensor affine scales
   -S model.affine.per_channel="false,true"
   # Always test with streamlining for some cleaner comparisons: The key
