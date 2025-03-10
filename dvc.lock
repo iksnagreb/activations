@@ -67,8 +67,8 @@ stages:
       size: 8045
     - path: build_steps.py
       hash: md5
-      md5: fe44d8a3b4288c7454e9a415e1ae941e
-      size: 21672
+      md5: 198d68bed037d2c1ccf82b463d9c116f
+      size: 22114
     - path: custom/apply_config.py
       hash: md5
       md5: 4c907c16f9d3e2f5377e36f153af40b8
@@ -158,8 +158,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: e9ee860c4f2aa45565cd7adaa797ea32.dir
-      size: 70825204
+      md5: 21c1e7fb46939d7f9dc7f1557fdf7d91.dir
+      size: 70825173
       nfiles: 136
   verify:
     cmd: python -m verify
@@ -186,8 +186,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: e9ee860c4f2aa45565cd7adaa797ea32.dir
-      size: 70825204
+      md5: 21c1e7fb46939d7f9dc7f1557fdf7d91.dir
+      size: 70825173
       nfiles: 136
     - path: build/report/post_synth_resources.json
       hash: md5

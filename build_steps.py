@@ -111,9 +111,11 @@ from finn.transformation.streamline.streamline_plus import \
 # New Range Analysis based streamlining directly implemented in QONNX
 from qonnx.transformation.streamline import Streamline as QONNXStreamline
 
-# # Custom conversion from Quant to MultiThreshold
+# Custom conversion from Quant to MultiThreshold
 from quant_to_multithreshold import QuantToMultiThreshold
-
+# Custom step to detect effectively integer initializers without integer type
+# annotations
+from custom.ints import InferIntInitializers
 
 # Prepares the graph to be consumed by FINN:
 # 1. Some graph cleanup removing unused tensors, nodes without effect and
@@ -279,6 +281,11 @@ def step_streamline(model: ModelWrapper, cfg: DataflowBuildConfig):
 # Function running the transformations to convert elementwise binary operations
 # to their hardware implementations
 def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
+    # Initializers to elementwise binary operations tend to be floats but for
+    # some configurations assume only integer values. If we can detect this we
+    # could allow better data type inference and more optimal weight bit-width
+    # minimization.
+    model = model.transform(InferIntInitializers())
     # Convert elementwise operations to hardware operators
     #   Note: Do not convert the final Mul operator at the output
     return model.transform(InferElementwiseBinaryOperation(
