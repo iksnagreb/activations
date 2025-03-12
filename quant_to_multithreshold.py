@@ -396,6 +396,7 @@ class QuantToMultiThreshold(Transformation):
                 xs = np.linspace(x0, x1, steps, dtype=np.float32)
                 # Evaluate the subgraph over the whole input range in batch mode
                 ys = evaluate_subgraph(subgraph, model, xs)
+
                 # Compute the derivative of the quantized function interpreting
                 # it as a 1d image
                 edges = convolve1d(
@@ -416,15 +417,8 @@ class QuantToMultiThreshold(Transformation):
                 signed = getCustomOp(quant).get_nodeattr("signed")
                 narrow = int(getCustomOp(quant).get_nodeattr("narrow"))
 
-                # Shift the thresholds half a step to the right. The actual
-                # threshold is halfway between this and the next step.
-                thresholds += 0.5 * dx
-
-                # Back to the real RA annotated scale to have the right rounding
-                # behavior to prevent later mismatch
-                dx = range_info[inp].scale
                 # Sanitize thresholds by rounding to the RA annotated scale
-                thresholds = dx * np.round(thresholds / dx)
+                thresholds = dx * np.ceil(thresholds / dx)
 
                 # Get the output bit-with to be produced by the quantizer,
                 # which determines how many thresholds are needed
@@ -454,14 +448,64 @@ class QuantToMultiThreshold(Transformation):
                     # Skip to the next candidate activation/quantizer
                     continue
 
+                # We need the annotated integer range to detect and correct
+                # stuck channels
+                (y0, y1) = range_info[out].int_range
+
+                # Reduce the bounds to per-channel bounds just as for the
+                # simulation above
+                y0 = np.min(y0, axis)
+                y1 = np.max(y1, axis)
+
+                # Derive the expected minimum of the integer output range
+                # according to the bit-width of the quantizer, respect narrow...
+                ymin = - 2 ** (bits - 1) + narrow if signed else 0
+
+                # Add some padding from the left such that the thresholds
+                # produce outputs starting from where the channel is stuck
+                padding = (y0 - ymin).astype(np.int64)
+
+                # No negative padding
+                padding = np.where(padding < 0, 0, padding)
+
+                # Find the stuck channels, which are those with singular output
+                # range
+                stuck = np.where(y0 == y1)[0]
+
+                # Check if there even is a stuck channel and warn, even if we
+                # can handle this now...
+                if np.any(stuck):
+                    # Issue a warning to make the user aware of this
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Stuck channel {quant.name}"
+                        f"Thresholds for channels {list(stuck)} will be padded"
+                    )
+
+                # TODO: Maybe restrict the padding to explicitly stuck channels?
+
+                # Add back the dimension lost by reducing to be compatible with
+                # the (C, N) layout
+                padding = np.expand_dims(padding, axis=-1)
+                # Add padding weights from the left to shift the function
+                # upwards
+                weights = np.concatenate((padding, weights), axis=-1)
+                # Derive threshold padding from the right
+                padding = np.full_like(padding, -np.inf, dtype=np.float32)
+                # Add padding to the thresholds
+                thresholds = np.concatenate((padding, thresholds), axis=-1)
+
                 # Count how many thresholds there are per channel (counting both
                 # positive and negative directions) to find out how many are
                 # missing
                 padding = 2 ** bits - 1 - np.sum(np.abs(weights), axis=-1)
+
+                # No negative padding
+                padding = np.where(padding < 0, 0, padding)
+
                 # Add back the dimension lost by reducing to be compatible with
                 # the (C, N) layout. Padding should respect narrow range...
                 padding = np.expand_dims(padding - narrow, axis=-1)
-                # Add padding weights from the left to shift the function
+                # Add padding weights from the right to fill-up the function
                 # upwards
                 weights = np.concatenate((weights, padding), axis=-1)
                 # Derive threshold padding from the right
