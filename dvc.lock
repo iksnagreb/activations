@@ -159,8 +159,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: d1a4c649951effc67f92e7f594608200.dir
-      size: 70828353
+      md5: f21c634521e833af53f6cb4527f49a53.dir
+      size: 70828520
       nfiles: 136
   verify:
     cmd: python -m verify
@@ -187,8 +187,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: d1a4c649951effc67f92e7f594608200.dir
-      size: 70828353
+      md5: f21c634521e833af53f6cb4527f49a53.dir
+      size: 70828520
       nfiles: 136
     - path: build/report/post_synth_resources.json
       hash: md5
