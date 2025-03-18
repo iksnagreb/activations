@@ -48,7 +48,7 @@ Thresholding:
   BRAM_36K: 0
   COUNT: 1
   DSP: 0
-  FF: 241
-  LUT: 89
-  SRL: 16
+  FF: 245
+  LUT: 90
+  SRL: 15
   URAM: 0
