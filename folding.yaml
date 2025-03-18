@@ -28,6 +28,9 @@ defaults:
 #    depth_trigger_bram: 0
     # Makes thresholds writeable through AXI-lite interface at runtime
     runtime_writeable_weights: 0
+    # Fallback option of now of the "depth_trigger" rules apply
+    #   Options: distributed, bram, uram, auto
+    ram_style_fallback: distributed
   # FIFO implemented via RTL (there is no HLS FIFO implementation in FINN)
   StreamingFIFO_rtl:
     # RTL vs. IPI implementation of FIFOs

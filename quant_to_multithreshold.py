@@ -245,6 +245,9 @@ class QuantToMultiThreshold(Transformation):
         # Maximum number of allowed steps for threshold conversion
         # subgraphs with input range greater than this will be skipped
         self.max_steps_for_conversion = max_steps_for_conversion
+        # keep a copy of the range analysis result to allow later inspection
+        self.range_analysis_result = None
+
 
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa
@@ -283,6 +286,7 @@ class QuantToMultiThreshold(Transformation):
             # Model needs some cleanup in preparation for the range analysis
             do_cleanup=True,
         )
+        self.range_analysis_result = range_info
 
         # Get the model graph out of the model wrapper object
         graph = model.graph

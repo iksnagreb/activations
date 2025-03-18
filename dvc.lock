@@ -95,8 +95,8 @@ stages:
       size: 423
     - path: quant_to_multithreshold.py
       hash: md5
-      md5: da6f82ac355919da87f90d80853a2636
-      size: 32004
+      md5: 0468cb553dd032f32e70e7018be2911a
+      size: 32172
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -137,6 +137,7 @@ stages:
             depth_trigger_uram: 2147483647
             depth_trigger_bram: 2147483647
             runtime_writeable_weights: 0
+            ram_style_fallback: distributed
           StreamingFIFO_rtl:
             impl_style: rtl
             ram_style: distributed
@@ -158,8 +159,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: a19c61a3ca8d0201210924f8b884b9c7.dir
-      size: 70825172
+      md5: d1a4c649951effc67f92e7f594608200.dir
+      size: 70828353
       nfiles: 136
   verify:
     cmd: python -m verify
@@ -186,8 +187,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: a19c61a3ca8d0201210924f8b884b9c7.dir
-      size: 70825172
+      md5: d1a4c649951effc67f92e7f594608200.dir
+      size: 70828353
       nfiles: 136
     - path: build/report/post_synth_resources.json
       hash: md5
