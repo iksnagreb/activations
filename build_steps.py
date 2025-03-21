@@ -117,6 +117,7 @@ from quant_to_multithreshold import QuantToMultiThreshold
 # annotations
 from custom.ints import InferIntInitializers
 
+
 # Prepares the graph to be consumed by FINN:
 # 1. Some graph cleanup removing unused tensors, nodes without effect and
 #  folding constants, i.e., collapsing chains of operations on constant tensors
@@ -215,7 +216,10 @@ def prepare_graph(
             # Apply the quantizer to MultiThreshold conversion
             # Note: This is exhaustive as well as single .transform reapplies as
             # long as possible.
-            model = model.transform(QuantToMultiThreshold(range_info, rescale))
+            model = model.transform(QuantToMultiThreshold(
+                range_info, rescale,
+                quant_filter=QuantToMultiThreshold.reject_input_quant
+            ))
             # If configured, run a verification of the transformed model on some
             # sample inputs
             if (VerificationStepType.QONNX_TO_FINN_PYTHON in
@@ -227,7 +231,7 @@ def prepare_graph(
             # converted to prevent excessive memory utilization
             model = model.transform(
                 ConvertQuantActToMultiThreshold(
-                    default_filter_function_generator(32)
+                    QuantToMultiThreshold.reject_input_quant
                 )
             )
 

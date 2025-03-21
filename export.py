@@ -143,8 +143,8 @@ def dummy(activation: str, input_bits: int, bits: int, pattern: str,
           affine: dict, activation_kwargs: dict, **kwargs):
     # Create the dummy model as a sequence of input quantizer and quantized
     # activation function
-    return (
-        # Create an input quantizer
+    return torch.nn.Sequential(
+        # Input quantizer from floats to configured bit-width
         QuantIdentity(
             # Quantize the input to signed representation of configured bits
             # Note: ReLU needs to be unsigned as outputs are >= 0
@@ -152,21 +152,18 @@ def dummy(activation: str, input_bits: int, bits: int, pattern: str,
             # Return the scale and bias quantization in formation
             return_quant_tensor=True
         ),
-        # Model operating on quantized inputs
-        torch.nn.Sequential(
-            # We need to put something here to break the fusible chain to not
-            # collapse all of our test model into a single threshold operation
-            # as FINN currently cannot handle float thresholds
-            OperatorTemplate("x.reshape((1, *x.shape)).reshape(x.shape)"),
-            # Add some generic test-pattern template in front of the activation
-            # function: This should be a chain of fusible operations
-            OperatorTemplate(pattern),
-            # Add configurable elementwise affine transformation to test
-            # per-channel vs. per-tensor and power of two vs. float parameters
-            LazyAffine(**affine, **kwargs),
-            # Add the quantized activation functions as configured
-            _registry[activation](bits, **activation_kwargs, **kwargs)
-        )
+        # We need to put something here to break the fusible chain to not
+        # collapse all of our test model into a single threshold operation
+        # as FINN currently cannot handle float thresholds
+        OperatorTemplate("x.reshape((1, *x.shape)).reshape(x.shape)"),
+        # Add some generic test-pattern template in front of the activation
+        # function: This should be a chain of fusible operations
+        OperatorTemplate(pattern),
+        # Add configurable elementwise affine transformation to test
+        # per-channel vs. per-tensor and power of two vs. float parameters
+        LazyAffine(**affine, **kwargs),
+        # Add the quantized activation functions as configured
+        _registry[activation](bits, **activation_kwargs, **kwargs)
     )
 
 
@@ -190,7 +187,7 @@ if __name__ == "__main__":
 
 
     # Construct the dummy model from configuration dictionary
-    quant, model = dummy(**params["model"])
+    model = dummy(**params["model"])
 
     # No gradient accumulation for calibration passes required
     with torch.no_grad():
@@ -198,7 +195,7 @@ if __name__ == "__main__":
         # device
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Move the model to the training device
-        quant, model = quant.to(device), model.to(device)
+        model = model.to(device)
         # Multiple passes of calibration might be necessary for larger/deep
         # models
         for _ in trange(0, params["calibration_passes"], desc="calibrating"):
@@ -206,37 +203,18 @@ if __name__ == "__main__":
             # Large batch to have more calibration samples. Otherwise, there is
             # too much deviation between this calibration and the verification
             # samples.
-            model(quant(make_inp(128, device=device)))
+            model(make_inp(128, device=device))
         # Move the model back to the CPU
-        quant, model = quant.cpu(), model.cpu()
+        model = model.cpu()
     # Switch model to evaluation mode to have it fixed for export
-    quant, model = quant.eval(), model.eval()
+    model = model.eval()
     # Sample random input tensor in batch-first layout
-    x = quant(make_inp(1))
+    x = make_inp(1)
     # Compute model output
     o = model(x)
 
-    # Extract calibrated quantization parameters
-    x, scale, bias, bits, signed, *_ = x
-
     # Export the model graph to QONNX
     export_qonnx(model, (x,), "model.onnx", **params["export"])
-    # Export the input quantizer model graph to QONNX
-    export_qonnx(quant, (make_inp(1),), "quant.onnx", **params["export"])
-
-    # Derive the QONNX datatype of the quantized integer model inputs
-    dtype = DataType[f"{'' if signed else 'U'}INT{int(bits)}"]
-
-    # Load the just exported model to patch the input datatype
-    model = ModelWrapper("model.onnx")
-    # Annotate the quantized datatype of the model input
-    model.set_tensor_datatype(model.graph.input[0].name, dtype)
-    # Save patched model
-    model.save("model.onnx")
-
-    # Convert all inputs to integer representation as we are not including the
-    # input quantizer itself in the graph
-    x = torch.round((x / scale + bias))
 
     # Save the input and output data for verification purposes later
     np.save("inp.npy", x.detach().numpy())

@@ -196,7 +196,7 @@ def _evaluate_subgraph(subgraph: list[NodeProto], model: ModelWrapper, x):
     ctx = {**{name: tensor_placeholder(name) for name in tensors}}  # noqa: dict
     # Insert the input to the subgraph which must be the first input to the
     # first operator
-    ctx[subgraph[0].input[0]] = x
+    ctx[subgraph[0].input[0]] = x.astype(np.float32)
 
     # Execute all nodes in the subgraph in order, updating the execution context
     # after each step
@@ -223,10 +223,43 @@ def evaluate_subgraph(subgraph: list[NodeProto], model: ModelWrapper, x):
 
 # how many steps (samples) we allow at most for threshold conversion
 # 8 GB memory / 8 bytes per sample (since linspace internally uses float64)
-default_max_steps_for_conversion = (8 * (2 ** 30)) / 8  
+default_max_steps_for_conversion = (8 * (2 ** 30)) / 8
+
 
 # Converts supported quantized activation functions to MultiThreshold
 class QuantToMultiThreshold(Transformation):
+    # Filter to reject the global input quantizer from conversion...
+    @staticmethod
+    def reject_input_quant(model: ModelWrapper, node: NodeProto):
+        # If node is not a quantizer, reject it...
+        if not node.op_type in SUPPORTED_QUANTIZERS:
+            return False
+        # Get the names of all global input tensors to insert a Squeeze
+        # operation in front
+        global_inputs = [inp.name for inp in model.graph.input]
+        # Check whether any of the input is a global input
+        if any(inp in global_inputs for inp in node.input):
+            # Reject quantizers directly connected to a global input
+            return False
+        # Look for another quantizer preceding this quantizer somewhere upstream
+        n = model.find_upstream(node.input[0], lambda x: x.op_type == "Quant")
+        # If there is no quantizer upstream, the list n will be empty
+        return bool(n)
+
+    # Filter to reject quantizers with too many bits
+    @staticmethod
+    def reject_bit_width(bits: int):
+        # The actual filter function...
+        def _filter(model: ModelWrapper, node: NodeProto):
+            # If node is not a quantizer, reject it...
+            if not node.op_type in SUPPORTED_QUANTIZERS:
+                return False
+            # Check whether the quantizer represents the output with too many
+            # bits
+            return int(model.get_initializer(node.input[3])) < bits
+
+        # Return the filter function
+        return _filter
 
     # Initializes the conversion by setting a seed range information for the
     # range analysis pass
@@ -247,7 +280,6 @@ class QuantToMultiThreshold(Transformation):
         self.max_steps_for_conversion = max_steps_for_conversion
         # keep a copy of the range analysis result to allow later inspection
         self.range_analysis_result = None
-
 
     # Applies the transform to a whole model graph
     def apply(self, model: ModelWrapper):  # noqa

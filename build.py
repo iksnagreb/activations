@@ -4,13 +4,6 @@ import yaml
 # Numpy for handling arrays
 import numpy as np
 
-# QONNX wrapper for ONNX models
-from qonnx.core.modelwrapper import ModelWrapper
-# Convert ONNX operator to QONNX CustomOp instance
-from qonnx.custom_op.registry import getCustomOp
-# QONNX datatype annotations
-from qonnx.core.datatype import DataType
-
 # FINN dataflow builder
 import finn.builder.build_dataflow as build
 import finn.builder.build_dataflow_config as build_cfg
@@ -34,11 +27,10 @@ from build_steps import (
     step_convert_depth_wise_to_hw,
     step_replicate_streams,
     step_apply_folding_config,
-    node_by_node_cppsim,
-    node_by_node_rtlsim,
+    # node_by_node_cppsim,
+    # node_by_node_rtlsim,
     set_rtlsim_backend
 )
-
 
 # Script entrypoint
 if __name__ == "__main__":
@@ -49,36 +41,15 @@ if __name__ == "__main__":
     # Seed all RNGs
     seed(params["seed"])
 
-    # Load the input quantizer model export
-    model = ModelWrapper("quant.onnx")
-    # There should only be one node in the input quantizer model: the quantizer
-    quant = model.graph.node[0]
-    # Extract the quantization scale, bias and bit-width
-    scale = model.get_initializer(quant.input[1])
-    bias = model.get_initializer(quant.input[2])
-    bits = int(model.get_initializer(quant.input[3]))
-    # Extract quantizer attributes
-    signed = getCustomOp(quant).get_nodeattr("signed")
-    narrow = getCustomOp(quant).get_nodeattr("narrow")
-
-    # Minimum and maximum of the integer range
-    x0 = DataType[f"{'' if signed else 'U'}INT{bits}"].min() + narrow  # noqa
-    x1 = DataType[f"{'' if signed else 'U'}INT{bits}"].max()  # noqa
-
     # Construct the seed range information of the input tensor
     range_info = RangeInfo(
         # Shape according to parameters + batch dimension
-        shape=(1, *params["shape"]),
-        # Float range covered by this quantizer from the integer range, scale
-        # and bias
-        # range=tuple(scale * np.array([[x0], [x1]]) + bias),
-        range=tuple(np.array([[x0], [x1]])),
-        # Integer range according to quantization type
-        int_range=tuple(np.array([[x0], [x1]])),
-        # Do not introduce scale and bias (which would be aggregated) here?
-        scale=np.array([scale], dtype=np.float32),
-        bias=np.array([bias], dtype=np.float32)
+        shape=(1, *params["shape"]), range=tuple(np.array([params["range"]]).T)
     )
+
+    # If we don't prepare thresholds from quantized functions, we want to keep
+    # the float ops
+    keep_floats = not params["prepare"]["thresholds"]
 
     # Create a configuration for building the scaled dot-product operator to a
     # hardware accelerator
@@ -138,10 +109,10 @@ if __name__ == "__main__":
             # Convert the elementwise binary operations to hardware operators.
             # These include for example adding residual branches and positional
             # encoding
-            step_convert_elementwise_binary_to_hw,
+            *([step_convert_elementwise_binary_to_hw] if keep_floats else []),
             # Converts remaining float operations (elementwise) to hardware
             # operators
-            step_convert_floats_to_hw,
+            *([step_convert_floats_to_hw] if keep_floats else []),
             # Convert Lookup layers, e.g., token embedding, to hardware custom
             # operators
             step_convert_lookup_to_hw,
