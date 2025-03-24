@@ -218,6 +218,9 @@ def prepare_graph(
             # long as possible.
             model = model.transform(QuantToMultiThreshold(
                 range_info, rescale,
+                # We cannot implement anything else but monotonic functions
+                # anyway
+                assume_monotonic=True,
                 quant_filter=QuantToMultiThreshold.reject_input_quant
             ))
             # If configured, run a verification of the transformed model on some
