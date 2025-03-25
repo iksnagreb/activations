@@ -151,8 +151,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: ec4db21185bacc26f41df7a38ee77841.dir
-      size: 70844603
+      md5: 6c900126ae55d4e14d40f0b415f3b622.dir
+      size: 70876157
       nfiles: 134
   verify:
     cmd: python -m verify
@@ -179,13 +179,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: ec4db21185bacc26f41df7a38ee77841.dir
-      size: 70844603
+      md5: 6c900126ae55d4e14d40f0b415f3b622.dir
+      size: 70876157
       nfiles: 134
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 7ba0b72f07375af0e96b2561d3c87dbb
-      size: 982
+      md5: 57f8fcce023b2baa12afbbe8e693d9a0
+      size: 984
     - path: metrics.py
       hash: md5
       md5: 0b9fed96ceef46e1e5d246fc86971aab
@@ -206,9 +206,9 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: e7faed77765244887fc97eb8d9d8b3e0
-      size: 558
+      md5: 87c0483e6f9a9420b5197812c965534c
+      size: 559
     - path: metrics.yaml
       hash: md5
-      md5: 5c006a2d9d17d65ec0a5487857b7dd9d
-      size: 68
+      md5: e82da3bb356efa4f703680569081db00
+      size: 69
