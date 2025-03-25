@@ -116,6 +116,8 @@ from quant_to_multithreshold import QuantToMultiThreshold
 # Custom step to detect effectively integer initializers without integer type
 # annotations
 from custom.ints import InferIntInitializers
+# Custom step to turn power of two multiplication and division into bit-shifts
+from custom.power_of_two import InferPowerOfTwoMulAsBitShift
 
 
 # Prepares the graph to be consumed by FINN:
@@ -293,6 +295,8 @@ def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
     # could allow better data type inference and more optimal weight bit-width
     # minimization.
     model = model.transform(InferIntInitializers())
+    # Convert multiplications (divisions) by powers of two to bit-shifts
+    model = model.transform(InferPowerOfTwoMulAsBitShift())
     # Convert elementwise operations to hardware operators
     #   Note: Do not convert the final Mul operator at the output
     return model.transform(InferElementwiseBinaryOperation(

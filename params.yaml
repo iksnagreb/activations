@@ -20,7 +20,7 @@ model:
   # Number of bits to use for the quantized activation function
   bits: 8
   # Restrict scaling type of quantizers: FP vs. POWER_OF_TWO
-  restrict_scaling_type: FP
+  restrict_scaling_type: POWER_OF_TWO
   # Restrict quantization to a narrow range or not
   narrow_range: false
   # Further (optional) arguments passed to the activation function
