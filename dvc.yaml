@@ -45,6 +45,8 @@ stages:
       - utils.py
       # Implementation details of the new custom build steps
       - custom/apply_config.py
+      - custom/power_of_two.py
+      - custom/ints.py
       # The model export produced by the setup stage: This triggers rerunning
       # this stage when the model configuration changes
       - model.onnx

@@ -69,6 +69,14 @@ stages:
       hash: md5
       md5: 4c907c16f9d3e2f5377e36f153af40b8
       size: 2360
+    - path: custom/ints.py
+      hash: md5
+      md5: 8aaa9c3080c0cd2232d0de24fdcb2f74
+      size: 2502
+    - path: custom/power_of_two.py
+      hash: md5
+      md5: 69a9f2226e5bea77e65529605a37d063
+      size: 7739
     - path: inp.npy
       hash: md5
       md5: 3fdb3b1f24922bf885d775dbc6a1111f
@@ -151,8 +159,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: f98b2961534a916e5bc5f890068b3e66.dir
-      size: 70834383
+      md5: 189b12a297835151b0876b7626420ac1.dir
+      size: 70834324
       nfiles: 134
   verify:
     cmd: python -m verify
@@ -179,8 +187,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: f98b2961534a916e5bc5f890068b3e66.dir
-      size: 70834383
+      md5: 189b12a297835151b0876b7626420ac1.dir
+      size: 70834324
       nfiles: 134
     - path: build/report/post_synth_resources.json
       hash: md5

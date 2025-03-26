@@ -50,7 +50,7 @@ class InferPowerOfTwoMulAsBitShift(Transformation):
                 (inp,), (init,) = group_inputs_by_category(node, model)
 
                 # Check whether this a power-of-two scaling operation
-                if not all(is_power_of_two(model.get_initializer(init))):
+                if not np.all(is_power_of_two(model.get_initializer(init))):
                     # Softly skip this node
                     continue
 
