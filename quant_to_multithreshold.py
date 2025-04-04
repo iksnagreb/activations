@@ -23,8 +23,11 @@ from qonnx.transformation.infer_shapes import InferShapes
 from qonnx.transformation.fold_constants import FoldConstants
 from qonnx.transformation.quant_constant_folding import \
     FoldTransposeIntoQuantInit
-from finn.transformation.qonnx.fold_quant_weights import FoldQuantWeights
 from qonnx.transformation.remove import RemoveIdentityOps
+from finn.transformation.qonnx.fold_quant_weights import FoldQuantWeights
+from finn.transformation.streamline import (
+    FactorOutMulSignMagnitude, Absorb1BitMulIntoMatMul, Absorb1BitMulIntoConv
+)
 
 # Range analysis to generate input ranges and scales use to enumerate inputs and
 # outputs of quantized activation functions to generate thresholds
@@ -289,6 +292,15 @@ class QuantToMultiThreshold(Transformation):
         model = model.transform(FoldConstants())
         model = model.transform(FoldTransposeIntoQuantInit())
         model = model.transform(FoldQuantWeights())
+        model = model.transform(FoldConstants())
+
+        # Absorb bipolar scales from Mul following MatMul-like operators into
+        # weights to avoid trying to convert a layer tail which just looks
+        # non-monotonic while actually being perfectly fine to convert...
+        model = model.transform(FactorOutMulSignMagnitude())
+        model = model.transform(Absorb1BitMulIntoMatMul())
+        model = model.transform(Absorb1BitMulIntoConv())
+
         # Redo shape and data type annotations after folding and cleanup might
         # have changed those
         model = model.transform(InferDataTypes())

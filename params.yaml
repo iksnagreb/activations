@@ -52,7 +52,7 @@ prepare:
   thresholds: true
   # Extra scaling applied to input ranges for threshold conversion to trade off
   # conversion/rounding errors vs. conversion runtime and memory consumption
-  rescale: 0.05
+  rescale: 0.01
 # FINN build configuration
 build:
   # Directory to store the build outputs
