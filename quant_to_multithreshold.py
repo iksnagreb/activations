@@ -438,13 +438,15 @@ class QuantToMultiThreshold(Transformation):
                 # keep in memory while narrowing down the search space
                 # Note: Do not cut sections smaller than the input quantization
                 # step size
-                steps = 1 if np.max(x1 - x0) / 2 ** 22 <= dx else 2 ** 22
+                steps = 2**10 if np.max(x1 - x0) / 2 ** 10 <= dx else 2 ** 10
 
                 # Enumerate interval sections of the input range to narrow down
                 # the search to ranges which actually contain thresholds
                 sections = np.expand_dims(1 / steps * np.arange(steps + 1), -1)
                 # Actually generate the inputs at the interval section bounds
                 xs = x0 + sections * (x1 - x0)
+                # Make sure all sample points are at multiples of the scale
+                xs = np.clip(dx * np.round(xs / dx), x0, x1)
                 # Evaluate the subgraph on the bounds of these sections.
                 # Note: _evaluate_subgraph is non-batched...
                 ys = _evaluate_subgraph(subgraph, model, xs)
@@ -469,22 +471,25 @@ class QuantToMultiThreshold(Transformation):
                     # At most process 2 ** 12 inputs in parallel, sections might
                     # be smaller - which is fine - limit parallelism to avoid
                     # excessive memory utilization
-                    steps = min(2 ** 12, int(np.ceil(np.max(x1 - x0) / dx)))
+                    steps = min(2 ** 14, int(np.ceil(np.max(x1 - x0) / dx)))
                     # Span the first steps of the input range
-                    xs = np.linspace(x0 - dx, x0 + steps * dx, steps)
+                    xs = np.linspace(x0 - dx, x0 + steps * dx, steps + 1)
                     # Make sure all sample points are at multiples of the scale
-                    xs = dx * np.round(xs / dx)
-                    # Clip within (x0, x1) if this range is smaller than steps
-                    xs = np.clip(xs, x0, x1)
+                    xs = np.clip(dx * np.round(xs / dx), x0, x1)
+
+                    # The first and the final output value on this section
+                    # tracked for early stopping once all steps have been found
+                    y0, y_end = evaluate_subgraph(subgraph, model, [xs[0], x1])
+
                     # Keep searching thresholds while we are within the range
                     while np.any(xs <= x1):
                         # Even more potential to speed this up assuming
                         # monotonicity here... Check bounds of xs first...
-                        y0, y1 = evaluate_subgraph(subgraph, model, xs[[0, -1]])
+                        y1 = _evaluate_subgraph(subgraph, model, xs[-1:])
                         # Checking if monotonic -> np.any(y0 != y1)
                         if not self.assume_monotonic or np.any(y0 != y1):
                             # Evaluate the function on the range in batch mode
-                            ys = evaluate_subgraph(subgraph, model, xs)
+                            ys = _evaluate_subgraph(subgraph, model, xs)
                             # Steps are edges of the output, i.e., where the
                             # derivative is non-zero
                             edges = convolve1d(
@@ -496,8 +501,15 @@ class QuantToMultiThreshold(Transformation):
                             # Step sizes at detected thresholds, these should be
                             # integer multiples of the quantization scale
                             weights.append(edges[np.unique(np.where(edges)[0])])
+                        # Early stopping: All outputs on the subsection reached
+                        # the final value: There won't be any more thresholds
+                        if self.assume_monotonic and np.all(y1 >= y_end):
+                            break
+                        # Remember maximum of current subsection for potential
+                        # early stopping in the next iteration
+                        y0 = y1
                         # Advance to the next steps points in the range
-                        xs = dx * np.round(xs / dx + (steps - 1))
+                        xs = dx * np.round((xs + dx * steps) / dx)
                         # Clip within range to not find out-of-bounds thresholds
                         xs = np.clip(xs, x0 - dx, x1 + dx)
 
