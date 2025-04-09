@@ -10,7 +10,7 @@ args=(
   -S shape="[256]"
   # Sweep some larger bit-widths at the input - in a real model we would get
   # these larger bit-widths out of some matrix multiplication
-  -S model.input_bits="8,16,32"
+  -S model.input_bits="8,16,24"
   # Sweep smaller bit-widths actually testing the quantized activation functions
   -S model.bits="2,4,8"
   # FP or POWER_OF_TWO for both, quantizers and affine scales
