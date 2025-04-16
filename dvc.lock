@@ -24,8 +24,8 @@ stages:
         model:
           activation: relu
           pattern: x
-          input_bits: 8
-          bits: 8
+          input_bits: 16
+          bits: 2
           restrict_scaling_type: FP
           narrow_range: false
           activation_kwargs: {}
@@ -38,22 +38,22 @@ stages:
         range:
         - -10
         - 10
-        seed: 12
+        seed: 657
         shape:
-        - 64
+        - 256
     outs:
     - path: inp.npy
       hash: md5
-      md5: 3fdb3b1f24922bf885d775dbc6a1111f
-      size: 384
+      md5: 10ea250ed7a681beaf62b4ee3b2a8787
+      size: 1152
     - path: model.onnx
       hash: md5
-      md5: f4e295e5ad38f842ec57f2bedd3fc2af
-      size: 1622
+      md5: 0743b47c93bca4ed1fb8485fa760627e
+      size: 1698
     - path: out.npy
       hash: md5
-      md5: 4600dbc2f14824a87728c3c2ff678b75
-      size: 384
+      md5: b47abead47956f99950299165a236e03
+      size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
@@ -75,20 +75,20 @@ stages:
       size: 2502
     - path: inp.npy
       hash: md5
-      md5: 3fdb3b1f24922bf885d775dbc6a1111f
-      size: 384
+      md5: 10ea250ed7a681beaf62b4ee3b2a8787
+      size: 1152
     - path: model.onnx
       hash: md5
-      md5: f4e295e5ad38f842ec57f2bedd3fc2af
-      size: 1622
+      md5: 0743b47c93bca4ed1fb8485fa760627e
+      size: 1698
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: 4600dbc2f14824a87728c3c2ff678b75
-      size: 384
+      md5: b47abead47956f99950299165a236e03
+      size: 1152
     - path: quant_to_multithreshold.py
       hash: md5
       md5: c488cb294ae55549f9358fb870b73dd1
@@ -123,9 +123,9 @@ stages:
         range:
         - -10
         - 10
-        seed: 12
+        seed: 657
         shape:
-        - 64
+        - 256
       folding.yaml:
         defaults:
           Thresholding_hls:
@@ -158,16 +158,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 23f69a816e911e3866abc531a834a5ad.dir
-      size: 70752149
+      md5: b61111cd4fcfee4e830b282573ee1777.dir
+      size: 70753376
       nfiles: 136
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: fe0c4d678819ef7b5bc18719ff323f8b.dir
-      size: 48792
+      md5: c465b1357fd666fa423c18f7129735a6.dir
+      size: 79608
       nfiles: 7
     - path: verify.py
       hash: md5
@@ -186,13 +186,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 23f69a816e911e3866abc531a834a5ad.dir
-      size: 70752149
+      md5: b61111cd4fcfee4e830b282573ee1777.dir
+      size: 70753376
       nfiles: 136
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 36a3c6a11b6b1307a402417dbbbb04b6
-      size: 983
+      md5: 15243b8a9d1ec1219937c8274ef56583
+      size: 978
     - path: metrics.py
       hash: md5
       md5: 0b9fed96ceef46e1e5d246fc86971aab
@@ -213,9 +213,9 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: c47a72a8aefc360555d28a28dbc2a3c0
-      size: 559
+      md5: dd3df3ac1f7d4d1c799026a5c4b23fd4
+      size: 556
     - path: metrics.yaml
       hash: md5
-      md5: 37cdd846007ef518a4a70871a2ec4077
+      md5: 66e1ef587ced742fc01da2cac1a5df12
       size: 68
