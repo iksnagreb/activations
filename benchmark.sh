@@ -32,4 +32,4 @@ args=(
 )
 
 # Fill the experiment queue spanning the whole grid configured above
-dvc exp run --queue "${args[@]}"
+dvc exp run --queue "${args[@]}" --force
