@@ -1,9 +1,9 @@
-# Tagging of metrics and verification aggregation to assist filtering experiment
+# Tagging of metrics and verification aggregation to help filtering experiment
 # sweeps
 tag: ''
 # Global seed to make evaluation reproducible
 seed: 12
-# Number of calibration passes to be applied to the model before export
+# Calibration passes to be applied to the model before export
 calibration_passes: 2048
 # Shape of the inputs (excluding the batch dimension)
 shape: [ 64 ]
@@ -49,7 +49,7 @@ prepare:
   # Enables streamlining transformations
   streamline: true
   # Enables multithreshold conversion
-  thresholds: true
+  thresholds: false
   # Extra scaling applied to input ranges for threshold conversion to trade off
   # conversion/rounding errors vs. conversion runtime and memory consumption
   rescale: 0.01
@@ -65,7 +65,7 @@ build:
   board: RFSoC2x2
   # Target shell flow: 'vivado_zynq' or 'vitis_alveo'
   shell_flow_type: vivado_zynq
-  # Path to folding configuration file
+  # Path to the folding configuration file
   folding_config_file: folding.yaml
   # Path to layer implementation style specialization config
   specialize_layers_config_file: specialize_layers.json
@@ -80,6 +80,8 @@ build:
   split_large_fifos: true
   # Applies bit-width minimization: Weights and activations/accumulators
   minimize_bit_width: true
+  # Enables experimental fixed-point conversion of float operations
+  fixedpt_config: fixed_point.yaml
   #  # Optional: Start the build from a specific step
   #  start_step: "step_quant_activation_to_multithreshold"
 #  # Optional: Stop the build after a specific step

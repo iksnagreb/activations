@@ -59,12 +59,12 @@ stages:
     deps:
     - path: build.py
       hash: md5
-      md5: 16b93d7d8722a7f36251e06724bb6df9
-      size: 6820
+      md5: f3292134d6c21fd97f3ea0fc208ee6ea
+      size: 7208
     - path: build_steps.py
       hash: md5
-      md5: 10b35a8ad78b2fa463d9cecb9eba4920
-      size: 22359
+      md5: ca1b5ad6d62f61887a72558efeaa2600
+      size: 24387
     - path: custom/apply_config.py
       hash: md5
       md5: 4c907c16f9d3e2f5377e36f153af40b8
@@ -116,9 +116,10 @@ stages:
           mvau_wwidth_max: 2048
           split_large_fifos: true
           minimize_bit_width: true
+          fixedpt_config: fixed_point.yaml
         prepare:
           streamline: true
-          thresholds: true
+          thresholds: false
           rescale: 0.01
         range:
         - -10
@@ -126,6 +127,10 @@ stages:
         seed: 12
         shape:
         - 64
+      fixed_point.yaml:
+        Add_0_param0: FIXED<16,8>
+        Mul_1_param0: FIXED<16,8>
+        Mul_2_param0: FIXED<16,8>
       folding.yaml:
         defaults:
           Thresholding_hls:
@@ -142,8 +147,10 @@ stages:
             ram_style: distributed
           ElementwiseAdd_hls:
             ram_style: distributed
+            res_type: lut
           ElementwiseMul_hls:
             ram_style: distributed
+            res_type: lut
           ElementwiseMinimum_hls:
             ram_style: distributed
           ElementwiseMaximum_hls:
@@ -158,20 +165,20 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 23f69a816e911e3866abc531a834a5ad.dir
-      size: 70752149
-      nfiles: 136
+      md5: dd6d9327fde952b1d1bab815d2f66d79.dir
+      size: 71551657
+      nfiles: 211
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: fe0c4d678819ef7b5bc18719ff323f8b.dir
-      size: 48792
+      md5: ebecc5b236d216a0cb4bf788b6b9928e.dir
+      size: 64170
       nfiles: 7
     - path: verify.py
       hash: md5
-      md5: 2cbebda1e941ed0be91b40ea513c8b8d
+      md5: 4d384340dd7fa31950f38c521883fc5d
       size: 971
     params:
       params.yaml:
@@ -179,20 +186,20 @@ stages:
     outs:
     - path: verification.yaml
       hash: md5
-      md5: 5224a3f087dfdd2bec5b236e4205ac3c
-      size: 22
+      md5: 8228a4d2ccfbff3d7a47c4e4d34aaad2
+      size: 19
   metrics:
     cmd: python -m metrics
     deps:
     - path: build/
       hash: md5
-      md5: 23f69a816e911e3866abc531a834a5ad.dir
-      size: 70752149
-      nfiles: 136
+      md5: dd6d9327fde952b1d1bab815d2f66d79.dir
+      size: 71551657
+      nfiles: 211
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 36a3c6a11b6b1307a402417dbbbb04b6
-      size: 983
+      md5: 7fbb784ed740282ed1e22f5277839d9d
+      size: 2354
     - path: metrics.py
       hash: md5
       md5: 0b9fed96ceef46e1e5d246fc86971aab
@@ -213,9 +220,9 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: c47a72a8aefc360555d28a28dbc2a3c0
+      md5: 9712245e060405e9c253429205a331db
       size: 559
     - path: metrics.yaml
       hash: md5
-      md5: 37cdd846007ef518a4a70871a2ec4077
+      md5: 895bdc4a7317ffdf478a03d4fb54dfad
       size: 68

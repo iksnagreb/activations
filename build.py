@@ -27,6 +27,7 @@ from build_steps import (
     step_convert_depth_wise_to_hw,
     step_replicate_streams,
     step_apply_folding_config,
+    step_apply_fixedpt_config,
     # node_by_node_cppsim,
     # node_by_node_rtlsim,
     set_rtlsim_backend
@@ -36,14 +37,14 @@ from build_steps import (
 if __name__ == "__main__":
     # Open the configuration file
     with open("params.yaml") as file:
-        # Load the configuration from yaml format
+        # Load the configuration from YAML format
         params = yaml.safe_load(file)
     # Seed all RNGs
     seed(params["seed"])
 
     # Construct the seed range information of the input tensor
     range_info = RangeInfo(
-        # Shape according to parameters + batch dimension
+        # Shape according to parameters and batch dimension
         shape=(1, *params["shape"]), range=tuple(np.array([params["range"]]).T)
     )
 
@@ -106,9 +107,13 @@ if __name__ == "__main__":
             # Unified exhaustive streamlining of complex model topologies
             # including attention, residuals and splits
             *([step_streamline] if params["prepare"]["streamline"] else []),
+            # Apply optional fixed-point quantization of parameter tensors,
+            # outputs of fixed-point operations will be turned into fixed-point
+            # by step_minimize_bit_width later
+            step_apply_fixedpt_config,
             # Convert the elementwise binary operations to hardware operators.
-            # These include for example adding residual branches and positional
-            # encoding
+            # These include, for example, adding residual branches and
+            # positional encoding
             *([step_convert_elementwise_binary_to_hw] if keep_floats else []),
             # Converts remaining float operations (elementwise) to hardware
             # operators
@@ -127,6 +132,8 @@ if __name__ == "__main__":
             # Convert most other layers supported by FINN to HW operators and
             # continue with default FINN flow
             "step_convert_to_hw",
+            # Do this here to get datatypes right when quantizing to fixed-point
+            "step_minimize_bit_width",
             "step_specialize_layers",
             "step_create_dataflow_partition",
             "step_target_fps_parallelization",
@@ -154,5 +161,5 @@ if __name__ == "__main__":
             "step_deployment_package",
         ]
     )
-    # Run the build process on the dummy operator graph
+    # Run the build process on the model graph
     build.build_dataflow_cfg("model.onnx", cfg)

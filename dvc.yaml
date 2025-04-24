@@ -67,6 +67,8 @@ stages:
       # Configuration file specifying the preferred implementation style of
       # custom operators
       - ${build.specialize_layers_config_file}:
+      # Optional fixed-point quantization configuration
+      - ${build.fixedpt_config}:
     # Outputs produced by this stage which should be tracked and passed on to
     # the next stage
     outs:
