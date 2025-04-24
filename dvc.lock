@@ -59,12 +59,12 @@ stages:
     deps:
     - path: build.py
       hash: md5
-      md5: 16b93d7d8722a7f36251e06724bb6df9
-      size: 6820
+      md5: f3292134d6c21fd97f3ea0fc208ee6ea
+      size: 7208
     - path: build_steps.py
       hash: md5
-      md5: 10b35a8ad78b2fa463d9cecb9eba4920
-      size: 22359
+      md5: 13162f96680e17f0cac0a92ec998e5d8
+      size: 24495
     - path: custom/apply_config.py
       hash: md5
       md5: 4c907c16f9d3e2f5377e36f153af40b8
@@ -116,6 +116,7 @@ stages:
           mvau_wwidth_max: 2048
           split_large_fifos: true
           minimize_bit_width: true
+          fixedpt_config: fixed_point.yaml
         prepare:
           streamline: true
           thresholds: true
@@ -126,6 +127,7 @@ stages:
         seed: 12
         shape:
         - 64
+      fixed_point.yaml: {}
       folding.yaml:
         defaults:
           Thresholding_hls:
@@ -142,8 +144,10 @@ stages:
             ram_style: distributed
           ElementwiseAdd_hls:
             ram_style: distributed
+            res_type: lut
           ElementwiseMul_hls:
             ram_style: distributed
+            res_type: lut
           ElementwiseMinimum_hls:
             ram_style: distributed
           ElementwiseMaximum_hls:
@@ -158,9 +162,9 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 23f69a816e911e3866abc531a834a5ad.dir
-      size: 70752149
-      nfiles: 136
+      md5: 8e886615c811834e331aa90171d90916.dir
+      size: 70754527
+      nfiles: 137
   verify:
     cmd: python -m verify
     deps:
@@ -171,8 +175,8 @@ stages:
       nfiles: 7
     - path: verify.py
       hash: md5
-      md5: 2cbebda1e941ed0be91b40ea513c8b8d
-      size: 971
+      md5: 8409058d5f5e77226742b60045dc6745
+      size: 969
     params:
       params.yaml:
         build.output_dir: build
@@ -186,9 +190,9 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 23f69a816e911e3866abc531a834a5ad.dir
-      size: 70752149
-      nfiles: 136
+      md5: 8e886615c811834e331aa90171d90916.dir
+      size: 70754527
+      nfiles: 137
     - path: build/report/post_synth_resources.json
       hash: md5
       md5: 36a3c6a11b6b1307a402417dbbbb04b6

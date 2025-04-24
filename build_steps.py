@@ -5,8 +5,15 @@ import numpy as np
 # YAML for loading experiment configurations
 import yaml
 
+# Protobuf onnx graph node type
+from onnx import NodeProto
+
 # QONNX wrapper of ONNX model graphs
 from qonnx.core.modelwrapper import ModelWrapper
+# QONNX fixed-point quantization support
+from qonnx.transformation.fixedpt_quantize import \
+    FixedPointQuantizeParamsFromDict
+
 # Range information structure for seeding the range analysis for converting
 # quantized activations to MultiThreshold
 from qonnx.util.range_analysis import RangeInfo
@@ -55,8 +62,7 @@ from finn.transformation.streamline.remove import (
     RemoveIdentityTranspose,
     RemoveIdentityReshape
 )
-# FINN streamlining transformation collapsing repeated operations of the same
-# kind
+# FINN streamlining transformation collapsing repeated same operations
 from finn.transformation.streamline.collapse_repeated import (
     CollapseRepeatedReshape
 )
@@ -121,9 +127,9 @@ from custom.ints import InferIntInitializers
 # Prepares the graph to be consumed by FINN:
 # 1. Some graph cleanup removing unused tensors, nodes without effect and
 #  folding constants, i.e., collapsing chains of operations on constant tensors
-# 2. Lowers some "more complex" operations: converts Conv and Gemm to MatMul and
+# 2. Lower some "more complex" operations: convert Conv and Gemm to MatMul and
 #  BatchNorm to Mul and Add operations followed by some necessary cleanup
-# 3. Converts all QONNX Quant nodes to MultiThreshold operations which can
+# 3. Converts all QONNX Quant nodes to MultiThreshold operations, which can
 #  absorb scales and biases during streamlining
 def prepare_graph(
         range_info: RangeInfo, rescale: float, streamline=True, thresholds=True
@@ -202,7 +208,7 @@ def prepare_graph(
             # and biases already to their final place where they could be fused
             # into multi-thresholds
             model = model.transform(QONNXStreamline(range_info))
-            # If configured, run a verification of the transformed model on some
+            # If configured, run verification of the transformed model on some
             # sample inputs
             if (VerificationStepType.QONNX_TO_FINN_PYTHON in
                     cfg._resolve_verification_steps()):  # noqa
@@ -223,7 +229,7 @@ def prepare_graph(
                 assume_monotonic=True,
                 quant_filter=QuantToMultiThreshold.reject_input_quant
             ))
-            # If configured, run a verification of the transformed model on some
+            # If configured, run verification of the transformed model on some
             # sample inputs
             if (VerificationStepType.QONNX_TO_FINN_PYTHON in
                     cfg._resolve_verification_steps()):  # noqa
@@ -238,14 +244,14 @@ def prepare_graph(
                 )
             )
 
-        # Some extra cleanup steps which are covered by later streamlining, but
+        # Some extra cleanup steps that are covered by later streamlining, but
         # we might disable the streamlining but allways needs these...
         model = model.transform(ComposedTransformation([
             CollapseRepeatedReshape(),
             RemoveIdentityReshape()
         ]))
 
-        # If configured, run a verification of the transformed model on some
+        # If configured, run verification of the transformed model on some
         # sample inputs
         if (VerificationStepType.QONNX_TO_FINN_PYTHON in
                 cfg._resolve_verification_steps()):  # noqa
@@ -274,7 +280,7 @@ def step_streamline(model: ModelWrapper, cfg: DataflowBuildConfig):
     # Note: Contains some sets of nested exhaustive transformations meant for
     # particular architectural patterns, e.g., residual topologies.
     model = model.transform(Streamline())
-    # If configured, run a verification of the transformed model on some
+    # If configured, run verification of the transformed model on some
     # sample inputs
     if (VerificationStepType.STREAMLINED_PYTHON in
             cfg._resolve_verification_steps()):  # noqa
@@ -285,18 +291,36 @@ def step_streamline(model: ModelWrapper, cfg: DataflowBuildConfig):
     return model
 
 
+# Rejects input quantizer and output dequantizer from conversion
+def reject_input_quant_output_dequant(model: ModelWrapper, node: NodeProto):
+    # Reject output dequantizer
+    if not InferElementwiseBinaryOperation.reject_output_dequant(model, node):
+        return False
+    # Get the names of all global input tensors to insert a Squeeze
+    # operation in front
+    global_inputs = [inp.name for inp in model.graph.input]
+    # Check whether any of the input is a global input
+    if any(inp in global_inputs for inp in node.input):
+        # Reject quantizers directly connected to a global input
+        return False
+    # Look for another quantizer preceding this quantizer somewhere upstream
+    n = model.find_upstream(node.input[0], lambda x: x.op_type == "Quant")
+    # If there is no quantizer upstream, the list n will be empty
+    return bool(n)
+
+
 # Function running the transformations to convert elementwise binary operations
 # to their hardware implementations
 def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
     # Initializers to elementwise binary operations tend to be floats but for
-    # some configurations assume only integer values. If we can detect this we
+    # some configurations assume only integer values. If we can detect this, we
     # could allow better data type inference and more optimal weight bit-width
     # minimization.
     model = model.transform(InferIntInitializers())
     # Convert elementwise operations to hardware operators
     #   Note: Do not convert the final Mul operator at the output
     return model.transform(InferElementwiseBinaryOperation(
-        InferElementwiseBinaryOperation.reject_output_dequant
+        reject_input_quant_output_dequant
     ))
 
 
@@ -306,8 +330,8 @@ def step_convert_floats_to_hw(model: ModelWrapper, _):
     # Handle float ReLU and non-threshold quantization operators
     return model.transform(
         ComposedTransformation([
-            InferReLUAsElementwiseMax(),
-            InferQuantAsFloat2Int()
+            InferReLUAsElementwiseMax(reject_input_quant_output_dequant),
+            InferQuantAsFloat2Int(reject_input_quant_output_dequant)
         ])
     )
 
@@ -347,7 +371,7 @@ def step_replicate_streams(model: ModelWrapper, _):
     return model.transform(InferReplicateStream())
 
 
-# Transformation apply the new YAML-based configuration to the model
+# Transformation to apply the new YAML-based configuration to the model
 from custom.apply_config import ApplyConfig
 
 
@@ -364,7 +388,7 @@ def step_apply_folding_config(model: ModelWrapper, cfg: DataflowBuildConfig):
             model = model.transform(GiveUniqueNodeNames())
             # Apply the configuration dictionary to the model graph
             model = model.transform(ApplyConfig(config))
-    # If configured, run a verification of the transformed model on some sample
+    # If configured, run verification of the transformed model on some sample
     # inputs
     if (VerificationStepType.FOLDED_HLS_CPPSIM in
             cfg._resolve_verification_steps()):  # noqa
@@ -377,6 +401,32 @@ def step_apply_folding_config(model: ModelWrapper, cfg: DataflowBuildConfig):
         verify_step(model, cfg, "folded_hls_cppsim", need_parent=True)
 
     # Return model with configuration applied
+    return model
+
+
+# Applies fixed-point configuration to model tensors if given
+def step_apply_fixedpt_config(model: ModelWrapper, cfg: DataflowBuildConfig):
+    # Load fixed-point data type configuration from YAML
+    if cfg.fixedpt_config is not None:
+        with open(cfg.fixedpt_config, "r") as f:
+            fxp_dict = yaml.safe_load(f)
+        # Configuration might be empty
+        if fxp_dict:
+            # Convert to DataType
+            for k, v in fxp_dict.items():
+                fxp_dict[k] = DataType[v]
+
+            # Apply the fixed-point quantization transformation
+            model = model.transform(FixedPointQuantizeParamsFromDict(fxp_dict))
+
+            # If configured, run verification of the transformed model on some
+            # sample inputs
+            if (VerificationStepType.STREAMLINED_PYTHON in
+                    cfg._resolve_verification_steps()):  # noqa
+                verify_step(
+                    model, cfg, "fixed_point_python", need_parent=False
+                )
+    # Return potentially modified model
     return model
 
 

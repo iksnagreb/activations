@@ -45,12 +45,18 @@ defaults:
     # parameter tensors
     #   Options: auto, block, distributed, ultra
     ram_style: distributed
+    # Type of resource to use for implementing the operator
+    #   Options: auto, lust, dsp
+    res_type: lut
   # Multiplication of two inputs (constants or streamed) implemented via HLS
   ElementwiseMul_hls:
     # Type of memory to be used for internal buffer storage and/or constant
     # parameter tensors
     #   Options: auto, block, distributed, ultra
     ram_style: distributed
+    # Type of resource to use for implementing the operator
+    #   Options: auto, lust, dsp
+    res_type: lut
   # Minimum of two inputs (constants or streamed) implemented via HLS
   ElementwiseMinimum_hls:
     # Type of memory to be used for internal buffer storage and/or constant

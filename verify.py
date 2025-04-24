@@ -12,7 +12,7 @@ if __name__ == "__main__":
     params = dvc.api.params_show("params.yaml")
     # Collect all verification output filenames
     outputs = glob.glob(
-        f"{params['build']['output_dir']}/verification_output/*.npy"
+        f"{params['build']['output_dir']}/verification_output/*.*"
     )
     # Extract the verification status for each verification output by matching
     # to the SUCCESS string contained in the filename
