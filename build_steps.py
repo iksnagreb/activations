@@ -410,20 +410,22 @@ def step_apply_fixedpt_config(model: ModelWrapper, cfg: DataflowBuildConfig):
     if cfg.fixedpt_config is not None:
         with open(cfg.fixedpt_config, "r") as f:
             fxp_dict = yaml.safe_load(f)
-        # Convert to DataType
-        for k, v in fxp_dict.items():
-            fxp_dict[k] = DataType[v]
+        # Configuration might be empty
+        if fxp_dict:
+            # Convert to DataType
+            for k, v in fxp_dict.items():
+                fxp_dict[k] = DataType[v]
 
-        # Apply the fixed-point quantization transformation
-        model = model.transform(FixedPointQuantizeParamsFromDict(fxp_dict))
+            # Apply the fixed-point quantization transformation
+            model = model.transform(FixedPointQuantizeParamsFromDict(fxp_dict))
 
-        # If configured, run verification of the transformed model on some
-        # sample inputs
-        if (VerificationStepType.STREAMLINED_PYTHON in
-                cfg._resolve_verification_steps()):  # noqa
-            verify_step(
-                model, cfg, "fixed_point_python", need_parent=False
-            )
+            # If configured, run verification of the transformed model on some
+            # sample inputs
+            if (VerificationStepType.STREAMLINED_PYTHON in
+                    cfg._resolve_verification_steps()):  # noqa
+                verify_step(
+                    model, cfg, "fixed_point_python", need_parent=False
+                )
     # Return potentially modified model
     return model
 
