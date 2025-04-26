@@ -12,8 +12,8 @@ Elementwise:
   BRAM_36K: 0
   COUNT: 5
   DSP: 0
-  FF: 157
-  LUT: 151
+  FF: 173
+  LUT: 163
   SRL: 0
   URAM: 0
 FIFO:
@@ -21,8 +21,8 @@ FIFO:
   BRAM_36K: 0
   COUNT: 6
   DSP: 0
-  FF: 100
-  LUT: 61
+  FF: 112
+  LUT: 65
   SRL: 0
   URAM: 0
 MAC:
