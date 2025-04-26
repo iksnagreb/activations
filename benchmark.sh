@@ -14,7 +14,7 @@ args=(
   # Sweep smaller bit-widths actually testing the quantized activation functions
   -S model.bits="2,4,8"
   # FP or POWER_OF_TWO for both, quantizers and affine scales
-  -S model.restrict_scaling_type="FP"
+  -S model.restrict_scaling_type="FP,POWER_OF_TWO"
   # There are probably no insights to gain from comparing narrow range vs.
   # non-narrow range
   -S model.narrow_range="false"
@@ -32,4 +32,4 @@ args=(
 )
 
 # Fill the experiment queue spanning the whole grid configured above
-dvc exp run --queue "${args[@]}"
+dvc exp run --queue "${args[@]}" --force
