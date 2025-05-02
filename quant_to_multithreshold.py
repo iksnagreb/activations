@@ -438,7 +438,7 @@ class QuantToMultiThreshold(Transformation):
                 # keep in memory while narrowing down the search space
                 # Note: Do not cut sections smaller than the input quantization
                 # step size
-                steps = 2**10 if np.max(x1 - x0) / 2 ** 10 <= dx else 2 ** 10
+                steps = 1 if np.max(x1 - x0) / 2 ** 22 <= dx else 2 ** 22
 
                 # Enumerate interval sections of the input range to narrow down
                 # the search to ranges which actually contain thresholds
@@ -471,7 +471,7 @@ class QuantToMultiThreshold(Transformation):
                     # At most process 2 ** 12 inputs in parallel, sections might
                     # be smaller - which is fine - limit parallelism to avoid
                     # excessive memory utilization
-                    steps = min(2 ** 14, int(np.ceil(np.max(x1 - x0) / dx)))
+                    steps = min(2 ** 12, int(np.ceil(np.max(x1 - x0) / dx)))
                     # Span the first steps of the input range
                     xs = np.linspace(x0 - dx, x0 + steps * dx, steps + 1)
                     # Make sure all sample points are at multiples of the scale
