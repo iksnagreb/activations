@@ -11,7 +11,7 @@ defaults:
     # Makes thresholds writeable through AXI-lite interface at runtime
     runtime_writeable_weights: 0
     # Parallelism: Processing Elements
-    PE: 4
+    PE: 2
   # Multi-thresholds implemented via RTL (applies to standalone thresholds)
   Thresholding_rtl:
     # Decides to use BRAM, URAM or LUTs for threshold memory, depending on the
@@ -34,7 +34,7 @@ defaults:
     #   Options: distributed, bram, uram, auto
     ram_style_fallback: distributed
     # Parallelism: Processing Elements
-    PE: 4
+    PE: 2
   # FIFO implemented via RTL (there is no HLS FIFO implementation in FINN)
   StreamingFIFO_rtl:
     # RTL vs. IPI implementation of FIFOs
@@ -53,7 +53,7 @@ defaults:
     #   Options: auto, lust, dsp
     res_type: lut
     # Parallelism: Processing Elements
-    PE: 4
+    PE: 2
   # Multiplication of two inputs (constants or streamed) implemented via HLS
   ElementwiseMul_hls:
     # Type of memory to be used for internal buffer storage and/or constant
@@ -64,7 +64,7 @@ defaults:
     #   Options: auto, lust, dsp
     res_type: lut
     # Parallelism: Processing Elements
-    PE: 4
+    PE: 2
   # Minimum of two inputs (constants or streamed) implemented via HLS
   ElementwiseMinimum_hls:
     # Type of memory to be used for internal buffer storage and/or constant
@@ -72,7 +72,7 @@ defaults:
     #   Options: auto, block, distributed, ultra
     ram_style: distributed
     # Parallelism: Processing Elements
-    PE: 4
+    PE: 2
   # Maximum of two inputs (constants or streamed) implemented via HLS
   ElementwiseMaximum_hls:
     # Type of memory to be used for internal buffer storage and/or constant
@@ -80,6 +80,6 @@ defaults:
     #   Options: auto, block, distributed, ultra
     ram_style: distributed
     # Parallelism: Processing Elements
-    PE: 4
+    PE: 2
 # Individual, named node-specific configurations here
 # ...

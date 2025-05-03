@@ -134,30 +134,30 @@ stages:
             mem_mode: internal_decoupled
             ram_style: distributed
             runtime_writeable_weights: 0
-            PE: 4
+            PE: 2
           Thresholding_rtl:
             depth_trigger_uram: 2147483647
             depth_trigger_bram: 2147483647
             runtime_writeable_weights: 0
             ram_style_fallback: distributed
-            PE: 4
+            PE: 2
           StreamingFIFO_rtl:
             impl_style: rtl
             ram_style: distributed
           ElementwiseAdd_hls:
             ram_style: distributed
             res_type: lut
-            PE: 4
+            PE: 2
           ElementwiseMul_hls:
             ram_style: distributed
             res_type: lut
-            PE: 4
+            PE: 2
           ElementwiseMinimum_hls:
             ram_style: distributed
-            PE: 4
+            PE: 2
           ElementwiseMaximum_hls:
             ram_style: distributed
-            PE: 4
+            PE: 2
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -168,8 +168,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 3d4c70ff42601a61aad9381c78a30b98.dir
-      size: 70800420
+      md5: e91c59ead219d7c8bf020ca500b6cabb.dir
+      size: 70786469
       nfiles: 137
   verify:
     cmd: python -m verify
@@ -198,13 +198,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 3d4c70ff42601a61aad9381c78a30b98.dir
-      size: 70800420
+      md5: e91c59ead219d7c8bf020ca500b6cabb.dir
+      size: 70786469
       nfiles: 137
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 41cc214e48f2ba5495e2ee992c42a8f5
-      size: 986
+      md5: a67871096ce53290b85b9aa15ad6e0af
+      size: 985
     - path: metrics.py
       hash: md5
       md5: 27f0b125aa2cb7f16e96063778b3f888
@@ -225,17 +225,17 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: 76593d4af84a5d69cbe51369ba4e51fb
-      size: 562
+      md5: f987c2bd99aa69062a430e2850aa7f9c
+      size: 560
     - path: estimate_network_performance.json
       hash: md5
-      md5: 22cfadf10534d01f62ad95cd42116fc1
-      size: 174
+      md5: c2c64e9d283ea7fa2652763636bcba21
+      size: 176
     - path: metrics.yaml
       hash: md5
-      md5: 852b7a2b947ce23f6e7271cf1ed63b57
+      md5: 64ce5f9a610f1b536d3c688952599c6a
       size: 69
     - path: rtlsim_performance.json
       hash: md5
-      md5: a9ad400379ba5439e62595abc130c94a
-      size: 344
+      md5: ac54830e8ec22500852fa5c01df841cc
+      size: 346
