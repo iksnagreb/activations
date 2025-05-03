@@ -1,7 +1,7 @@
 {
-  "critical_path_cycles": 64,
-  "max_cycles": 64,
+  "critical_path_cycles": 32,
+  "max_cycles": 32,
   "max_cycles_node_name": "Thresholding_rtl_0",
-  "estimated_throughput_fps": 1562500.0,
-  "estimated_latency_ns": 640.0
+  "estimated_throughput_fps": 3125000.0,
+  "estimated_latency_ns": 320.0
 }
