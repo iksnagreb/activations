@@ -33,9 +33,7 @@ model:
     # Range to sample the scale and bias from
     # Note: There seems to be some issue with threshold conversion if there are
     # scales close to zero, probably in relation to the RA-annotated scale?
-    # Note: Power of two scales/biases < 1 is unclear how to realize this right
-    # now
-    range: [ 1, 4 ]
+    range: [ 0.5, 8 ]
     # Dimension to be considered as channel if per-channel
     cdim: 1
 # Model to ONNX export hyperparameters
