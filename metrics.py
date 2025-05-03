@@ -7,7 +7,7 @@ import pandas as pd
 if __name__ == "__main__":
     # Open the configuration file
     with open("params.yaml") as file:
-        # Load the configuration from yaml format
+        # Load the configuration from YAML format
         params = yaml.safe_load(file)["metrics"]
     # Open the report file
     with open(params["report"]) as file:
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     for category, f in params["breakdown"].items():
         # Filter and count the number of occurrences per category
         count = len(report.filter(regex=f, axis="rows"))
-        # Filter and summarize according to the category-specified rule
+        # Filter and summarize, according to the category-specified rule
         summary = report.filter(regex=f, axis="rows").sum()
         # Insert into the nested breakdown dictionary
         breakdown[category] = {"COUNT": count, **summary.to_dict()}
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     report = report.filter(regex=params["filter"], axis="rows")
     # Generate a summary of the total resources
     summary = report.sum()
-    # Dump the metrics dictionary as yaml
+    # Dump the metrics dictionary as YAML
     with open("metrics.yaml", "w") as file:
         # Convert the dataframe to a dictionary which can be dumped into YAML
         yaml.safe_dump(summary.to_dict(), file)

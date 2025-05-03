@@ -1,0 +1,16 @@
+{
+  "N_IN_TXNS": 64,
+  "N_OUT_TXNS": 64,
+  "cycles": 84,
+  "N": 1,
+  "latency_cycles": 83,
+  "interval_cycles": 19,
+  "TIMEOUT": 0,
+  "UNFINISHED_INS": 0,
+  "UNFINISHED_OUTS": 0,
+  "RUNTIME_S": 0,
+  "runtime[ms]": 0.00084,
+  "throughput[images/s]": 1190476.1904761905,
+  "fclk[mhz]": 100.0,
+  "stable_throughput[images/s]": 1190476.1904761905
+}

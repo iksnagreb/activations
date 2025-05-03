@@ -40,20 +40,20 @@ stages:
         - 10
         seed: 12
         shape:
-        - 64
+        - 256
     outs:
     - path: inp.npy
       hash: md5
-      md5: 3fdb3b1f24922bf885d775dbc6a1111f
-      size: 384
+      md5: 4d0c3e80a9139ca10df50d5f2c26413d
+      size: 1152
     - path: model.onnx
       hash: md5
-      md5: f4e295e5ad38f842ec57f2bedd3fc2af
-      size: 1622
+      md5: 7c95c3a5097528cf1d712a44835ba88e
+      size: 1625
     - path: out.npy
       hash: md5
-      md5: 4600dbc2f14824a87728c3c2ff678b75
-      size: 384
+      md5: 8d456a561f8414ca5b242608eb03e300
+      size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
     deps:
@@ -63,8 +63,8 @@ stages:
       size: 7208
     - path: build_steps.py
       hash: md5
-      md5: 13162f96680e17f0cac0a92ec998e5d8
-      size: 24495
+      md5: 30960e405af4345972f4642bf3cc7652
+      size: 24597
     - path: custom/apply_config.py
       hash: md5
       md5: 4c907c16f9d3e2f5377e36f153af40b8
@@ -75,20 +75,20 @@ stages:
       size: 2502
     - path: inp.npy
       hash: md5
-      md5: 3fdb3b1f24922bf885d775dbc6a1111f
-      size: 384
+      md5: 4d0c3e80a9139ca10df50d5f2c26413d
+      size: 1152
     - path: model.onnx
       hash: md5
-      md5: f4e295e5ad38f842ec57f2bedd3fc2af
-      size: 1622
+      md5: 7c95c3a5097528cf1d712a44835ba88e
+      size: 1625
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: 4600dbc2f14824a87728c3c2ff678b75
-      size: 384
+      md5: 8d456a561f8414ca5b242608eb03e300
+      size: 1152
     - path: quant_to_multithreshold.py
       hash: md5
       md5: d3ebd3a014daff495169fcd3e71c3df5
@@ -126,7 +126,7 @@ stages:
         - 10
         seed: 12
         shape:
-        - 64
+        - 256
       fixed_point.yaml: {}
       folding.yaml:
         defaults:
@@ -134,24 +134,30 @@ stages:
             mem_mode: internal_decoupled
             ram_style: distributed
             runtime_writeable_weights: 0
+            PE: 4
           Thresholding_rtl:
             depth_trigger_uram: 2147483647
             depth_trigger_bram: 2147483647
             runtime_writeable_weights: 0
             ram_style_fallback: distributed
+            PE: 4
           StreamingFIFO_rtl:
             impl_style: rtl
             ram_style: distributed
           ElementwiseAdd_hls:
             ram_style: distributed
             res_type: lut
+            PE: 4
           ElementwiseMul_hls:
             ram_style: distributed
             res_type: lut
+            PE: 4
           ElementwiseMinimum_hls:
             ram_style: distributed
+            PE: 4
           ElementwiseMaximum_hls:
             ram_style: distributed
+            PE: 4
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -162,16 +168,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: dad40ebc5f3d509bafe2500d99f6d8d0.dir
-      size: 70754690
+      md5: 3d4c70ff42601a61aad9381c78a30b98.dir
+      size: 70800420
       nfiles: 137
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 64ad866289fe1c5d6af27972c6b8760c.dir
-      size: 48792
+      md5: 23835cc4252a3f64879275fa233a9648.dir
+      size: 85656
       nfiles: 7
     - path: verify.py
       hash: md5
@@ -186,21 +192,23 @@ stages:
       md5: 5224a3f087dfdd2bec5b236e4205ac3c
       size: 22
   metrics:
-    cmd: python -m metrics
+    cmd: "# Copy metrics out of the build directory\ncp build/report/estimate_network_performance.json
+      .\ncp build/report/rtlsim_performance.json .\n# Run python script for aggregating
+      from the build/report/post_synth_resources.json file\npython -m metrics\n"
     deps:
     - path: build/
       hash: md5
-      md5: dad40ebc5f3d509bafe2500d99f6d8d0.dir
-      size: 70754690
+      md5: 3d4c70ff42601a61aad9381c78a30b98.dir
+      size: 70800420
       nfiles: 137
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: 36a3c6a11b6b1307a402417dbbbb04b6
-      size: 983
+      md5: 41cc214e48f2ba5495e2ee992c42a8f5
+      size: 986
     - path: metrics.py
       hash: md5
-      md5: 0b9fed96ceef46e1e5d246fc86971aab
-      size: 1706
+      md5: 27f0b125aa2cb7f16e96063778b3f888
+      size: 1707
     params:
       params.yaml:
         build.output_dir: build
@@ -217,9 +225,17 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: c47a72a8aefc360555d28a28dbc2a3c0
-      size: 559
+      md5: 76593d4af84a5d69cbe51369ba4e51fb
+      size: 562
+    - path: estimate_network_performance.json
+      hash: md5
+      md5: 22cfadf10534d01f62ad95cd42116fc1
+      size: 174
     - path: metrics.yaml
       hash: md5
-      md5: 37cdd846007ef518a4a70871a2ec4077
-      size: 68
+      md5: 852b7a2b947ce23f6e7271cf1ed63b57
+      size: 69
+    - path: rtlsim_performance.json
+      hash: md5
+      md5: a9ad400379ba5439e62595abc130c94a
+      size: 344

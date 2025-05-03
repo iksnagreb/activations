@@ -19,15 +19,15 @@ stages:
       - shape
       - range
       - calibration_passes
-    # Outputs produced by this stage which should be tracked and passed on to
+    # Outputs produced by this stage, which should be tracked and passed on to
     # the next stage
     outs:
-      # The dummy model exported as ONNX
+      # The model exported as ONNX
       - model.onnx
       # Input/Output pair in numpy format for verification during the build
       - inp.npy
       - out.npy
-  # Stage running the finn build of the dummy model configured in parameters
+  # Stage running the finn build of the model configured in parameters
   build:
     # Command running a finn build of the model produced during setup
     #   Note: More options should be provided via environment variables
@@ -54,7 +54,7 @@ stages:
       - out.npy
     # Parameters used by this stage
     params:
-      # Track the input shape, RNG-seed and build section from the parameters
+      # Track the input shape, RNG-seed and build section from the parameter
       # file
       - shape
       - range
@@ -69,15 +69,30 @@ stages:
       - ${build.specialize_layers_config_file}:
       # Optional fixed-point quantization configuration
       - ${build.fixedpt_config}:
-    # Outputs produced by this stage which should be tracked and passed on to
+    # Outputs produced by this stage, which should be tracked and passed on to
     # the next stage
     outs:
       # Track everything from the build directory
       - ${build.output_dir}/
-  # Stage collecting the synthesis metrics form the build stage
+#    # Produces metrics as output
+#    metrics:
+#      # Estimates of cycles, throughput, latency
+#      - ${build.output_dir}/report/estimate_network_performance.json:
+#          # Keep the metrics tracked by git
+#          cache: false
+#      # RTL simulation of cycles, throughput, latency
+#      - ${build.output_dir}/report/rtlsim_performance.json:
+#          # Keep the metrics tracked by git
+#          cache: false
+  # Stage collecting the synthesis metrics from the build stage
   metrics:
     # Command aggregating metrics from the build output products
-    cmd: python -m metrics
+    cmd: |
+      # Copy metrics out of the build directory
+      cp ${build.output_dir}/report/estimate_network_performance.json .
+      cp ${build.output_dir}/report/rtlsim_performance.json .
+      # Run python script for aggregating from the ${metrics.report} file
+      python -m metrics
     # Dependencies of this stage to determine when it needs to be rerun
     deps:
       # The script executing the stage
@@ -88,18 +103,26 @@ stages:
       - ${metrics.report}
     # Parameters used by this stage
     params:
-      # Track the build section from the parameters file
+      # Track the build section from the parameter file
       - build.output_dir
-      # Track the metrics section from the parameters file
+      # Track the metrics section from the parameter file
       - metrics
     # Produces metrics as output
     metrics:
-      # Track all metrics in this file
+      # Aggregated metrics from the ${metrics.report} file
       - metrics.yaml:
           # Keep the metrics tracked by git
           cache: false
-      # Per category metrics breakdown
+      # Per category metrics breakdown from the ${metrics.report} file
       - breakdown.yaml:
+          # Keep the metrics tracked by git
+          cache: false
+      # Estimates of cycles, throughput, latency, ...
+      - estimate_network_performance.json:
+          # Keep the metrics tracked by git
+          cache: false
+      # RTL simulation measurement of cycles, throughput, latency, ...
+      - rtlsim_performance.json:
           # Keep the metrics tracked by git
           cache: false
   # Stage checking the verification output of the FINN dataflow build
@@ -114,7 +137,7 @@ stages:
       - ${build.output_dir}/verification_output/
     # Parameters used by this stage
     params:
-      # Track the build section from the parameters file
+      # Track the build section from the parameter file
       - build.output_dir
     # Produces metrics as output
     metrics:

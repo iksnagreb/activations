@@ -6,7 +6,7 @@ seed: 12
 # Calibration passes to be applied to the model before export
 calibration_passes: 2048
 # Shape of the inputs (excluding the batch dimension)
-shape: [ 64 ]
+shape: [ 256 ]
 # Range of input values
 range: [ -10, +10 ]
 # Model configuration section

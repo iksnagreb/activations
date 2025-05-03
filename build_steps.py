@@ -316,7 +316,9 @@ def step_convert_elementwise_binary_to_hw(model: ModelWrapper, _):
     # some configurations assume only integer values. If we can detect this, we
     # could allow better data type inference and more optimal weight bit-width
     # minimization.
-    model = model.transform(InferIntInitializers())
+    # Note: Disabled this optimization for systematic comparison of experiment
+    # configurations
+    # model = model.transform(InferIntInitializers())
     # Convert elementwise operations to hardware operators
     #   Note: Do not convert the final Mul operator at the output
     return model.transform(InferElementwiseBinaryOperation(
