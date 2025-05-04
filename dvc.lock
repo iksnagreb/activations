@@ -24,7 +24,7 @@ stages:
         model:
           activation: relu
           pattern: x
-          input_bits: 8
+          input_bits: 24
           bits: 8
           restrict_scaling_type: FP
           narrow_range: false
@@ -38,21 +38,21 @@ stages:
         range:
         - -10
         - 10
-        seed: 12
+        seed: 657
         shape:
         - 256
     outs:
     - path: inp.npy
       hash: md5
-      md5: 4d0c3e80a9139ca10df50d5f2c26413d
+      md5: 10ea250ed7a681beaf62b4ee3b2a8787
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 46621ef2e02ba17193d490ba7fed416a
-      size: 1625
+      md5: e872fa40a7717c4579fae1c1cc7856f7
+      size: 1698
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: 49b5e7b6904a1cab5e2b797bf4ed9c2a
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
@@ -75,19 +75,19 @@ stages:
       size: 2502
     - path: inp.npy
       hash: md5
-      md5: 4d0c3e80a9139ca10df50d5f2c26413d
+      md5: 10ea250ed7a681beaf62b4ee3b2a8787
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 46621ef2e02ba17193d490ba7fed416a
-      size: 1625
+      md5: e872fa40a7717c4579fae1c1cc7856f7
+      size: 1698
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: 49b5e7b6904a1cab5e2b797bf4ed9c2a
       size: 1152
     - path: quant_to_multithreshold.py
       hash: md5
@@ -119,15 +119,18 @@ stages:
           fixedpt_config: fixed_point.yaml
         prepare:
           streamline: true
-          thresholds: true
+          thresholds: false
           rescale: 0.01
         range:
         - -10
         - 10
-        seed: 12
+        seed: 657
         shape:
         - 256
-      fixed_point.yaml: {}
+      fixed_point.yaml:
+        Add_0_param0: FIXED<16,8>
+        Mul_1_param0: FIXED<16,8>
+        Mul_2_param0: FIXED<16,8>
       folding.yaml:
         defaults:
           Thresholding_hls:
@@ -172,16 +175,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 772295dbbda92c78dd27a0265589986c.dir
-      size: 70804085
-      nfiles: 137
+      md5: 879564eb56ad0199d56e38798beb7fdd.dir
+      size: 71623963
+      nfiles: 210
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 624bdde9f4fadb9c61991a1d2c022ef6.dir
-      size: 85656
+      md5: 6ffab337ca48791f9c08111ef7c64363.dir
+      size: 121002
       nfiles: 7
     - path: verify.py
       hash: md5
@@ -193,8 +196,8 @@ stages:
     outs:
     - path: verification.yaml
       hash: md5
-      md5: 5224a3f087dfdd2bec5b236e4205ac3c
-      size: 22
+      md5: 8228a4d2ccfbff3d7a47c4e4d34aaad2
+      size: 19
   metrics:
     cmd: "# Copy metrics out of the build directory\ncp build/report/estimate_network_performance.json
       .\ncp build/report/rtlsim_performance.json .\n# Run python script for aggregating
@@ -202,13 +205,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 772295dbbda92c78dd27a0265589986c.dir
-      size: 70804085
-      nfiles: 137
+      md5: 879564eb56ad0199d56e38798beb7fdd.dir
+      size: 71623963
+      nfiles: 210
     - path: build/report/post_synth_resources.json
       hash: md5
-      md5: d30a8132b0d50a2c603816141351bf2f
-      size: 986
+      md5: a872c7cfc3c6eec1ae8ad7004ed5f84b
+      size: 2357
     - path: metrics.py
       hash: md5
       md5: 27f0b125aa2cb7f16e96063778b3f888
@@ -229,17 +232,17 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: c6162858c8d3d2d93be95d223f8815a8
-      size: 562
+      md5: 9c571e5f0736cad956cdd78558cba9cc
+      size: 560
     - path: estimate_network_performance.json
       hash: md5
-      md5: 22cfadf10534d01f62ad95cd42116fc1
-      size: 174
+      md5: 0a7dde4088108799ad20aa41efd4c1a8
+      size: 178
     - path: metrics.yaml
       hash: md5
-      md5: 852b7a2b947ce23f6e7271cf1ed63b57
-      size: 69
+      md5: 32e41c9b02a5c088853a2284dca491bc
+      size: 68
     - path: rtlsim_performance.json
       hash: md5
-      md5: a9ad400379ba5439e62595abc130c94a
-      size: 344
+      md5: 5c095123a15c296444889746ad32f2e2
+      size: 325
