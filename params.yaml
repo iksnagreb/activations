@@ -1,14 +1,17 @@
 # Tagging of metrics and verification aggregation to help filtering experiment
 # sweeps
-tag: ''
+tag: fixed-point
 # Global seed to make evaluation reproducible
-seed: 12
+seed: 345
 # Calibration passes to be applied to the model before export
 calibration_passes: 2048
 # Shape of the inputs (excluding the batch dimension)
-shape: [ 256 ]
+shape:
+- 256
 # Range of input values
-range: [ -10, +10 ]
+range:
+- -10
+- 10
 # Model configuration section
 model:
   # Name identifying the activation function
@@ -16,24 +19,26 @@ model:
   # Test pattern for operator fusion during multi-threshold conversion
   pattern: x
   # Number of bits to use at the input
-  input_bits: 8
+  input_bits: 24
   # Number of bits to use for the quantized activation function
-  bits: 8
+  bits: 2
   # Restrict scaling type of quantizers: FP vs. POWER_OF_TWO
   restrict_scaling_type: FP
   # Restrict quantization to a narrow range or not
   narrow_range: false
   # Further (optional) arguments passed to the activation function
-  activation_kwargs: { }
+  activation_kwargs: {}
   # Parameters of the elementwise affine transformation inserted in front to the
   # quantized activation function
   affine:
     # Per-tensor vs. per-channel affine scale and bias
-    per_channel: false
+    per_channel: true
     # Range to sample the scale and bias from
     # Note: There seems to be some issue with threshold conversion if there are
     # scales close to zero, probably in relation to the RA-annotated scale?
-    range: [ 0.5, 8 ]
+    range:
+    - 0.5
+    - 8
     # Dimension to be considered as channel if per-channel
     cdim: 1
 # Model to ONNX export hyperparameters
@@ -47,7 +52,7 @@ prepare:
   # Enables streamlining transformations
   streamline: true
   # Enables multithreshold conversion
-  thresholds: true
+  thresholds: false
   # Extra scaling applied to input ranges for threshold conversion to trade off
   # conversion/rounding errors vs. conversion runtime and memory consumption
   rescale: 0.01
@@ -95,14 +100,14 @@ metrics:
   # pattern applied as a filter to the report rows, similar to the report above
   breakdown:
     # Multiply accumulate operations: Matrix-Vector and Vector-Vector
-    MAC: "MV|VV"
+    MAC: MV|VV
     # Elementwise operations: Mul, Add, Maximum, etc.
-    Elementwise: "Elementwise"
+    Elementwise: Elementwise
     # Multi-threshold operations: Activation and Quantization
-    Thresholding: "Thresholding"
+    Thresholding: Thresholding
     # FIFO buffers inserted between layers
-    FIFO: "StreamingFIFO"
+    FIFO: StreamingFIFO
     # Data-Width Converters inserted to adapt over different SIMD/PE
-    DWC: "DataWidthConverter"
+    DWC: DataWidthConverter
     # Sliding-Window Generators feeding convolutions
-    SWG: "ConvolutionInputGenerator"
+    SWG: ConvolutionInputGenerator
