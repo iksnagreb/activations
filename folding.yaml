@@ -81,5 +81,13 @@ defaults:
     ram_style: distributed
     # Parallelism: Processing Elements
     PE: 4
+  # Float to integer quantization
+  ElementwiseFloat2Int_hls:
+    # Parallelism: Processing Elements
+    PE: 4
+  # Float to configurable type casting
+  ElementwiseFloatCast_hls:
+    # Parallelism: Processing Elements
+    PE: 4
 # Individual, named node-specific configurations here
 # ...

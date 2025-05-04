@@ -158,6 +158,10 @@ stages:
           ElementwiseMaximum_hls:
             ram_style: distributed
             PE: 4
+          ElementwiseFloat2Int_hls:
+            PE: 4
+          ElementwiseFloatCast_hls:
+            PE: 4
       specialize_layers.json:
         '':
           preferred_impl_style: ''
@@ -168,8 +172,8 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: cb5f9c96baa8c06495ccdf5f89b2888c.dir
-      size: 70804090
+      md5: 772295dbbda92c78dd27a0265589986c.dir
+      size: 70804085
       nfiles: 137
   verify:
     cmd: python -m verify
@@ -198,8 +202,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: cb5f9c96baa8c06495ccdf5f89b2888c.dir
-      size: 70804090
+      md5: 772295dbbda92c78dd27a0265589986c.dir
+      size: 70804085
       nfiles: 137
     - path: build/report/post_synth_resources.json
       hash: md5
