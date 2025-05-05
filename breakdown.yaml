@@ -49,6 +49,6 @@ Thresholding:
   COUNT: 1
   DSP: 0
   FF: 1065
-  LUT: 7251
+  LUT: 7250
   SRL: 32
   URAM: 0
