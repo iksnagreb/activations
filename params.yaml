@@ -56,7 +56,7 @@ build:
   # Directory to store the build outputs
   output_dir: build
   # Run synthesis to generate a .dcp for the stitched-IP output product
-  stitched_ip_gen_dcp: false
+  stitched_ip_gen_dcp: true
   # Target clock period, i.e., inverse of target frequency
   synth_clk_period_ns: 10.0
   # Board to target with the build
@@ -88,7 +88,7 @@ build:
 metrics:
   # Path to the report file to be summarized
   # Note: remember to adjust the build directory when changing the config above
-  report: build/report/post_synth_resources.json
+  report: build/report/post_synth_resources_dcp.json
   # Filter the report rows
   filter: (top)
   # Aggregate metrics breakdown by categories: Each category can specify a regex

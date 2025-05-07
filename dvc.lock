@@ -105,7 +105,7 @@ stages:
       params.yaml:
         build:
           output_dir: build
-          stitched_ip_gen_dcp: false
+          stitched_ip_gen_dcp: true
           synth_clk_period_ns: 10.0
           board: RFSoC2x2
           shell_flow_type: vivado_zynq
@@ -172,9 +172,9 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 772295dbbda92c78dd27a0265589986c.dir
-      size: 70804085
-      nfiles: 137
+      md5: 7a0e9655f488fb3aa161e8ead3cfdb15.dir
+      size: 83522196
+      nfiles: 229
   verify:
     cmd: python -m verify
     deps:
@@ -198,17 +198,17 @@ stages:
   metrics:
     cmd: "# Copy metrics out of the build directory\ncp build/report/estimate_network_performance.json
       .\ncp build/report/rtlsim_performance.json .\n# Run python script for aggregating
-      from the build/report/post_synth_resources.json file\npython -m metrics\n"
+      from the build/report/post_synth_resources_dcp.json file\npython -m metrics\n"
     deps:
     - path: build/
       hash: md5
-      md5: 772295dbbda92c78dd27a0265589986c.dir
-      size: 70804085
-      nfiles: 137
-    - path: build/report/post_synth_resources.json
+      md5: 7a0e9655f488fb3aa161e8ead3cfdb15.dir
+      size: 83522196
+      nfiles: 229
+    - path: build/report/post_synth_resources_dcp.json
       hash: md5
-      md5: d30a8132b0d50a2c603816141351bf2f
-      size: 986
+      md5: 54629863e778acf19a93ea6ec75ef64a
+      size: 563
     - path: metrics.py
       hash: md5
       md5: 27f0b125aa2cb7f16e96063778b3f888
@@ -217,7 +217,7 @@ stages:
       params.yaml:
         build.output_dir: build
         metrics:
-          report: build/report/post_synth_resources.json
+          report: build/report/post_synth_resources_dcp.json
           filter: (top)
           breakdown:
             MAC: MV|VV
@@ -229,16 +229,16 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: c6162858c8d3d2d93be95d223f8815a8
-      size: 562
+      md5: ab79990a931b5d361fc316b41e2eaf39
+      size: 563
     - path: estimate_network_performance.json
       hash: md5
       md5: 22cfadf10534d01f62ad95cd42116fc1
       size: 174
     - path: metrics.yaml
       hash: md5
-      md5: 852b7a2b947ce23f6e7271cf1ed63b57
-      size: 69
+      md5: 922772d4b122e6660529fa6e2fcc9296
+      size: 67
     - path: rtlsim_performance.json
       hash: md5
       md5: a9ad400379ba5439e62595abc130c94a

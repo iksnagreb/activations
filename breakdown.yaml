@@ -21,8 +21,8 @@ FIFO:
   BRAM_36K: 0
   COUNT: 2
   DSP: 0
-  FF: 136
-  LUT: 71
+  FF: 140
+  LUT: 78
   SRL: 0
   URAM: 0
 MAC:
@@ -49,6 +49,6 @@ Thresholding:
   COUNT: 1
   DSP: 0
   FF: 1065
-  LUT: 7251
+  LUT: 11836
   SRL: 32
   URAM: 0
