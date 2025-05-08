@@ -38,21 +38,21 @@ stages:
         range:
         - -10
         - 10
-        seed: 12
+        seed: 657
         shape:
         - 256
     outs:
     - path: inp.npy
       hash: md5
-      md5: 4d0c3e80a9139ca10df50d5f2c26413d
+      md5: 10ea250ed7a681beaf62b4ee3b2a8787
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 46621ef2e02ba17193d490ba7fed416a
+      md5: 0afcead56b4bbf5d83e6cdf2a8bd5950
       size: 1625
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: 33e4718c3001debfd5055341fbfe30bd
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
@@ -75,11 +75,11 @@ stages:
       size: 2502
     - path: inp.npy
       hash: md5
-      md5: 4d0c3e80a9139ca10df50d5f2c26413d
+      md5: 10ea250ed7a681beaf62b4ee3b2a8787
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 46621ef2e02ba17193d490ba7fed416a
+      md5: 0afcead56b4bbf5d83e6cdf2a8bd5950
       size: 1625
     - path: noctua.sh
       hash: md5
@@ -87,7 +87,7 @@ stages:
       size: 1832
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: 33e4718c3001debfd5055341fbfe30bd
       size: 1152
     - path: quant_to_multithreshold.py
       hash: md5
@@ -124,7 +124,7 @@ stages:
         range:
         - -10
         - 10
-        seed: 12
+        seed: 657
         shape:
         - 256
       fixed_point.yaml: {}
@@ -172,15 +172,15 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 7a0e9655f488fb3aa161e8ead3cfdb15.dir
-      size: 83522196
+      md5: 881a5433e9c828ca412015c05d09a3a9.dir
+      size: 83509767
       nfiles: 229
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 624bdde9f4fadb9c61991a1d2c022ef6.dir
+      md5: 3990ace587e73a115f1a48a87e82d09f.dir
       size: 85656
       nfiles: 7
     - path: verify.py
@@ -202,8 +202,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 7a0e9655f488fb3aa161e8ead3cfdb15.dir
-      size: 83522196
+      md5: 881a5433e9c828ca412015c05d09a3a9.dir
+      size: 83509767
       nfiles: 229
     - path: build/report/post_synth_resources_dcp.json
       hash: md5
