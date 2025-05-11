@@ -59,8 +59,8 @@ stages:
     deps:
     - path: build.py
       hash: md5
-      md5: f3292134d6c21fd97f3ea0fc208ee6ea
-      size: 7208
+      md5: bb5b85aabe59b37e2c533f5d05fac989
+      size: 7216
     - path: build_steps.py
       hash: md5
       md5: 30960e405af4345972f4642bf3cc7652
@@ -91,8 +91,8 @@ stages:
       size: 1152
     - path: quant_to_multithreshold.py
       hash: md5
-      md5: d3ebd3a014daff495169fcd3e71c3df5
-      size: 38797
+      md5: b8690a6c32cd93a69cbc05f39d9e428f
+      size: 38801
     - path: run.sh
       hash: md5
       md5: 6e3e34149c16795c5a8424a51bdbf5f8
@@ -172,16 +172,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: 7a0e9655f488fb3aa161e8ead3cfdb15.dir
-      size: 83522196
-      nfiles: 229
+      md5: 9d1c0bba3c5ddf69b0e266cacf5c4eff.dir
+      size: 11320132
+      nfiles: 197
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: 624bdde9f4fadb9c61991a1d2c022ef6.dir
-      size: 85656
+      md5: 3423958034f1de3ab368a067344fd3a5.dir
+      size: 1646256
       nfiles: 7
     - path: verify.py
       hash: md5
@@ -202,13 +202,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: 7a0e9655f488fb3aa161e8ead3cfdb15.dir
-      size: 83522196
-      nfiles: 229
+      md5: 9d1c0bba3c5ddf69b0e266cacf5c4eff.dir
+      size: 11320132
+      nfiles: 197
     - path: build/report/post_synth_resources_dcp.json
       hash: md5
-      md5: 54629863e778acf19a93ea6ec75ef64a
-      size: 563
+      md5: 462df3c38c87d25eb1e0b2aa93ddee07
+      size: 558
     - path: metrics.py
       hash: md5
       md5: 27f0b125aa2cb7f16e96063778b3f888
@@ -229,16 +229,16 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: ab79990a931b5d361fc316b41e2eaf39
-      size: 563
+      md5: 7ea9cb70706d38186032a10db058738d
+      size: 560
     - path: estimate_network_performance.json
       hash: md5
       md5: 22cfadf10534d01f62ad95cd42116fc1
       size: 174
     - path: metrics.yaml
       hash: md5
-      md5: 922772d4b122e6660529fa6e2fcc9296
-      size: 67
+      md5: 20d5c0e7fcef9161cdaaf5bbb95ef198
+      size: 65
     - path: rtlsim_performance.json
       hash: md5
       md5: a9ad400379ba5439e62595abc130c94a

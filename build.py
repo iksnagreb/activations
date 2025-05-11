@@ -155,10 +155,10 @@ if __name__ == "__main__":
             # Finish following default FINN flow
             "step_create_stitched_ip",
             "step_measure_rtlsim_performance",
-            "step_out_of_context_synthesis",
-            "step_synthesize_bitfile",
-            "step_make_pynq_driver",
-            "step_deployment_package",
+            # "step_out_of_context_synthesis",
+            # "step_synthesize_bitfile",
+            # "step_make_pynq_driver",
+            # "step_deployment_package",
         ]
     )
     # Run the build process on the model graph

@@ -662,8 +662,8 @@ class QuantToMultiThreshold(Transformation):
 
                 # Optimization: Unbroadcast from per-channel to per-tensor
                 # thresholds if all channels turn out to be identical
-                thresholds = unbroadcast_tensor(thresholds)
-                weights = unbroadcast_tensor(weights)
+                # thresholds = unbroadcast_tensor(thresholds)
+                # weights = unbroadcast_tensor(weights)
 
                 # Create new value information for the thresholds tensor
                 threshold_tensor = oh.make_tensor_value_info(
