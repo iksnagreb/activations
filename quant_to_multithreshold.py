@@ -31,8 +31,7 @@ from finn.transformation.streamline import (
 
 # Range analysis to generate input ranges and scales use to enumerate inputs and
 # outputs of quantized activation functions to generate thresholds
-from qonnx.util.range_analysis import range_analysis, RangeInfo, \
-    unbroadcast_tensor
+from qonnx.util.range_analysis import range_analysis, RangeInfo
 # Executes an ONNX node considering QONNX domain operations as well
 from qonnx.core.onnx_exec import execute_node
 # Utility for creating a tensor according to the description in ONNX value info
@@ -227,6 +226,54 @@ def evaluate_subgraph(subgraph: list[NodeProto], model: ModelWrapper, x):
     return np.concatenate(chunks, axis=0)
 
 
+# Extracts multi-threshold representation from a function input-output pair
+# covering the whole range of possible inputs at some resolution we do not
+# actually care for anymore at this point.
+# TODO: This cleaned-up version of the search/extraction probably needs to be
+#  embedded below to derive a chunked version avoiding OOM issues once again...
+def find_thresholds(x: np.array, y: np.array):
+    # Find all step locations by convolution with an edge detection kernel
+    edges = convolve1d(y, np.array([+1, -1]), mode="nearest", axis=0, origin=-1)
+
+    # Output scale - weight, i.e., height of the smallest step
+    scale = np.abs(edges[edges != 0]).min()
+    # Output bias - function offset at the start without taking any steps
+    bias = y[0]
+    # Only positive bias can be handled via monotonically increasing threshold
+    # functions
+    min_bias, bias = np.min(bias), bias - np.min(bias)
+    # Remove the integer part from the bias - this can be handled via thresholds
+    bias, padding = np.modf(bias / scale)
+
+    # Start collecting per-channel thresholds with left side padding to account
+    # for the integer part of the bias
+    thresholds = [[-np.inf for _ in range(int(p))] for p in padding]
+    # Collect step weights as well - only really relevant for non-monotonic
+    # functions
+    weights = [[1 for _ in range(int(p))] for p in padding]
+    # Thresholds are where there are non-zero edge detections
+    # Note: Channels first followed by thresholds in increasing order
+    for i, j in zip(*np.where(edges.T)):
+        # Threshold multiplicity - weight, i.e., height of the step
+        weight = int(np.round((edges[j, i] / scale)))
+        # Switch from [Steps, C] to [C, Steps] layout collected as nested lists
+        thresholds[i].extend(np.abs(weight) * [x[j, i]])
+        # Collect signed weights as well
+        weights[i].extend(np.abs(weight) * [np.sign(weight)])
+
+    # Right side padding amount needed to fill up all threshold lists to the
+    # maximum length
+    padding = [max((len(t) for t in thresholds)) - len(t) for t in thresholds]
+    # Insert the right side padding into each threshold list
+    thresholds = [[*t, *(p * [np.inf])] for t, p in zip(thresholds, padding)]
+    # Add padding to the weights as well
+    weights = [[*w, *(p * [1])] for w, p in zip(weights, padding)]
+
+    # Return the collected thresholds, output scale and remaining fractional
+    # part of the bias
+    return np.asarray(thresholds), np.asarray(weights), scale, bias + min_bias
+
+
 # Converts supported quantized activation functions to MultiThreshold
 class QuantToMultiThreshold(Transformation):
     # Filter to reject the global input quantizer from conversion...
@@ -396,6 +443,19 @@ class QuantToMultiThreshold(Transformation):
                         f"{self.__class__.__name__}: Potential slow conversion "
                         f"No input integer range info for {inp}"
                     )
+
+                # Get the quantizer node terminating the chain of operators as
+                # this holds some extra information such as the target bit-width
+                quant = subgraph[-1]
+
+                # Check whether this is a signed quantizer
+                signed = getCustomOp(quant).get_nodeattr("signed")
+                narrow = int(getCustomOp(quant).get_nodeattr("narrow"))
+
+                # Get the output bit-with to be produced by the quantizer,
+                # which determines how many thresholds are needed
+                bits = int(model.get_initializer(quant.input[3]))
+
                 # The output is produced by a quantizer, thus we can always
                 # assume the integer range
                 (__, __), dy = range_info[out].range, range_info[out].scale
@@ -418,146 +478,22 @@ class QuantToMultiThreshold(Transformation):
                 x1 = np.max(x1, axis).astype(np.float64)
 
                 # If the input range does not have a know scale for enumerating
-                # the inputs, set some default. Sample at higher rate to avoid
-                # aliasing and rounding effects. Strictly, the sampling theorem
-                # does not apply here: This is neither band-limited (perfect
-                # steps require infinite frequencies) nor continuous (floats are
-                # not reals)
-                dx = 2.5e-4 if dx is None else np.min(np.asarray(dx))
-                # It does not make sense to go below the smallest representable
-                # floating-point number...
-                dx = max(self.rescale * dx, np.finfo(np.float32).eps)
+                # the inputs, set some default
+                dx = 1.0e-4 if dx is None else np.min(np.asarray(dx))
 
-                # Collect list of candidate thresholds (will be filtered and
-                # padded in post-processing)
-                thresholds = []
-                weights = []
+                # TODO: Re-implement chunked evaluation and threshold search to
+                #  avoid OOM issues for large/high resolution ranges...
 
-                # Step size for cutting the range into interval sections for
-                # threshold search: We want to balance the number of sections to
-                # keep in memory while narrowing down the search space
-                # Note: Do not cut sections smaller than the input quantization
-                # step size
-                steps = 1 if np.max(x1 - x0) / 2 ** 22 <= dx else 2 ** 22
-
-                # Enumerate interval sections of the input range to narrow down
-                # the search to ranges which actually contain thresholds
-                sections = np.expand_dims(1 / steps * np.arange(steps + 1), -1)
-                # Actually generate the inputs at the interval section bounds
-                xs = x0 + sections * (x1 - x0)
-                # Make sure all sample points are at multiples of the scale
-                xs = np.clip(dx * np.round(xs / dx), x0, x1)
-                # Evaluate the subgraph on the bounds of these sections.
-                # Note: _evaluate_subgraph is non-batched...
+                # Span the whole input range divided into uniform steps
+                xs = np.linspace(x0, x1, int(np.ceil(np.max(x1 - x0) / dx)))
+                # Make sure all inputs are at the quantization levels
+                xs = np.round(xs / np.asarray(dx)) * np.asarray(dx)
+                # Evaluate the function on the range in batch mode
                 ys = _evaluate_subgraph(subgraph, model, xs)
-                # Iterators on the sections pairing up the upper/lower bounds
-                xs = zip(xs, xs[1:])
-                ys = zip(ys, ys[1:])
 
-                # Collect all sections for processing finding the thresholds
-                # Note: Putting in further assumptions we can narrow the search
-                # space down when collecting these
-                sections = []
-
-                # Insert sections into the list for further processing, applying
-                # some filter conditions: Currently only monotonicity
-                for (x0, x1), (y0, y1) in zip(xs, ys):
-                    # Keep section for checking if monotonic -> np.any(y0 != y1)
-                    if not self.assume_monotonic or np.any(y0 != y1):
-                        sections.append((x0, x1))
-
-                # Search for thresholds, i.e., steps, in each of the sections
-                for x0, x1 in tqdm(sections, desc=f"Thresholds {node.name}"):
-                    # At most process 2 ** 12 inputs in parallel, sections might
-                    # be smaller - which is fine - limit parallelism to avoid
-                    # excessive memory utilization
-                    steps = min(2 ** 12, int(np.ceil(np.max(x1 - x0) / dx)))
-                    # Span the first steps of the input range
-                    xs = np.linspace(x0 - dx, x0 + steps * dx, steps + 1)
-                    # Make sure all sample points are at multiples of the scale
-                    xs = np.clip(dx * np.round(xs / dx), x0, x1)
-
-                    # The first and the final output value on this section
-                    # tracked for early stopping once all steps have been found
-                    y0, y_end = evaluate_subgraph(subgraph, model, [xs[0], x1])
-
-                    # Keep searching thresholds while we are within the range
-                    while np.any(xs <= x1):
-                        # Even more potential to speed this up assuming
-                        # monotonicity here... Check bounds of xs first...
-                        y1 = _evaluate_subgraph(subgraph, model, xs[-1:])
-                        # Checking if monotonic -> np.any(y0 != y1)
-                        if not self.assume_monotonic or np.any(y0 != y1):
-                            # Evaluate the function on the range in batch mode
-                            ys = _evaluate_subgraph(subgraph, model, xs)
-                            # Steps are edges of the output, i.e., where the
-                            # derivative is non-zero
-                            edges = convolve1d(
-                                ys, np.array([+1, -1]), axis=0, mode="nearest"
-                            )
-                            # Thresholds are the xs corresponding to the edges,
-                            # i.e., where the convolution detected a step
-                            thresholds.append(xs[np.unique(np.where(edges)[0])])
-                            # Step sizes at detected thresholds, these should be
-                            # integer multiples of the quantization scale
-                            weights.append(edges[np.unique(np.where(edges)[0])])
-                        # Early stopping: All outputs on the subsection reached
-                        # the final value: There won't be any more thresholds
-                        if self.assume_monotonic and np.all(y1 >= y_end):
-                            break
-                        # Remember maximum of current subsection for potential
-                        # early stopping in the next iteration
-                        y0 = y1
-                        # Advance to the next steps points in the range
-                        xs = dx * np.round((xs + dx * steps) / dx)
-                        # Clip within range to not find out-of-bounds thresholds
-                        xs = np.clip(xs, x0 - dx, x1 + dx)
-
-                # Pack all collected thresholds into a single array
-                thresholds = np.concatenate(thresholds, axis=0)
-                weights = np.concatenate(weights, axis=0)
-
-                # Make sure these are single precision floats (parts of the
-                # calculations above are carried out in double precision)
-                thresholds = thresholds.astype(np.float32)
-                weights = weights.astype(np.float32)
-
-                # Get the quantizer node terminating the chain of operators as
-                # this holds some extra information such as the target bit-width
-                quant = subgraph[-1]
-
-                # Check whether this is a signed quantizer
-                signed = getCustomOp(quant).get_nodeattr("signed")
-                narrow = int(getCustomOp(quant).get_nodeattr("narrow"))
-
-                # Sanitize thresholds by rounding to the RA annotated scale
-                thresholds = dx * np.ceil(thresholds / dx + 0.5)
-
-                # Get the output bit-with to be produced by the quantizer,
-                # which determines how many thresholds are needed
-                bits = int(model.get_initializer(quant.input[3]))
-
-                # Move the first axis to the end to have (..., Num) layout,
-                # where Num is the number of thresholds found
-                thresholds = np.moveaxis(thresholds, 0, -1)
-                weights = np.moveaxis(weights, 0, -1)
-                # Force the threshold tensor to (C, Num) shape
-                # Note could be (1, 1, ..., 1, C, Num) shape before
-                thresholds = thresholds.reshape(*thresholds.shape[-2:])
-                weights = weights.reshape(*weights.shape[-2:])
-
-                # Factor out the quantization scale from the weights, turning
-                # them into integer step sizes
-                weights = np.floor(weights / dy).astype(np.int32)
-
-                # Initialize a mask to remove all weights/thresholds
-                mask = np.ones_like(weights, dtype=bool)
-                # Filter to keep the first unique occurrence of each threshold
-                for i, t in enumerate(thresholds):
-                    mask[i, np.unique(t, return_index=True)[1]] = False
-                # Remove duplicate thresholds by setting the corresponding
-                # weight to zero
-                weights[np.where(mask)] = 0
+                # Find weighted thresholds and output scale and bias over the
+                # input-output range
+                thresholds, weights, scale, bias = find_thresholds(xs, ys)
 
                 # Sanity check for monotonicity: Non-monotonic functions have
                 # some negative weights
@@ -570,100 +506,17 @@ class QuantToMultiThreshold(Transformation):
                     # Skip to the next candidate activation/quantizer
                     continue
 
-                # We need the annotated integer range to detect and correct
-                # stuck channels
-                (y0, y1) = range_info[out].int_range
-
-                # Reduce the bounds to per-channel bounds just as for the
-                # simulation above
-                y0 = np.min(y0, axis)
-                y1 = np.max(y1, axis)
-
-                # Derive the expected minimum of the integer output range
-                # according to the bit-width of the quantizer, respect narrow...
-                ymin = - 2 ** (bits - 1) + narrow if signed else 0
-
-                # Add some padding from the left such that the thresholds
-                # produce outputs starting from where the channel is stuck
-                padding = (y0 - ymin).astype(np.int64)
-
-                # No negative padding
-                padding = np.where(padding < 0, 0, padding)
-
-                # Find the stuck channels, which are those with singular output
-                # range
-                stuck = np.where(y0 == y1)[0]
-
-                # Check if there even is a stuck channel and warn, even if we
-                # can handle this now...
-                if np.any(stuck):
+                # Sanity check for extracted output scale: Should be clode to
+                # range annotation scale
+                if not np.allclose(scale, dy):
                     # Issue a warning to make the user aware of this
                     warnings.warn(
-                        f"{self.__class__.__name__}: Stuck channel {quant.name}"
-                        f" Thresholds for channels {list(stuck)} will be padded"
+                        f"{self.__class__.__name__}: Extracted scale mismatch"
+                        f" near {quant.name}: {scale} vs. {dy} (from RA)"
                     )
 
-                # TODO: Maybe restrict the padding to explicitly stuck channels?
-
-                # Add back the dimension lost by reducing to be compatible with
-                # the (C, N) layout
-                padding = np.expand_dims(padding, axis=-1)
-                # Add padding weights from the left to shift the function
-                # upwards
-                weights = np.concatenate((padding, weights), axis=-1)
-                # Derive threshold padding from the right
-                padding = np.full_like(padding, -np.inf, dtype=np.float32)
-                # Add padding to the thresholds
-                thresholds = np.concatenate((padding, thresholds), axis=-1)
-
-                # Count how many thresholds there are per channel (counting both
-                # positive and negative directions) to find out how many are
-                # missing
-                padding = 2 ** bits - 1 - np.sum(np.abs(weights), axis=-1)
-
-                # No negative padding
-                padding = np.where(padding < 0, 0, padding)
-
-                # Add back the dimension lost by reducing to be compatible with
-                # the (C, N) layout. Padding should respect narrow range...
-                padding = np.expand_dims(padding - narrow, axis=-1)
-                # Add padding weights from the right to fill-up the function
-                # upwards
-                weights = np.concatenate((weights, padding), axis=-1)
-                # Derive threshold padding from the right
-                padding = np.full_like(padding, +np.inf, dtype=np.float32)
-                # Add padding to the thresholds
-                thresholds = np.concatenate((thresholds, padding), axis=-1)
-
-                # Steps of size >1 should be expressed as repeated steps of
-                # size =1 to comply with the hardware backend
-                # Unpacks a list of weights to unit weights yielding the same
-                # sum
-                def unpack_weights(ws):
-                    # Keep the sign of the weight but repeat as many 1s
-                    return [
-                        np.sign(w) * 1 for w in ws for _ in range(np.abs(w))
-                    ]
-
-                # Unpacks the threshold list according to the weights repeating
-                # the thresholds weight-many times
-                def unpack_thresholds(ts, ws):
-                    # Repeat the threshold t w-many times
-                    return [
-                        t for t, w in zip(ts, ws) for _ in range(np.abs(w))
-                    ]
-
-                # Unpack the thresholds to unit steps
-                thresholds = np.asarray([
-                    unpack_thresholds(*tws) for tws in zip(thresholds, weights)
-                ])
-                # Unpack the weight list to unit step weights
-                weights = np.asarray([unpack_weights(ws) for ws in weights])
-
-                # Optimization: Unbroadcast from per-channel to per-tensor
-                # thresholds if all channels turn out to be identical
-                # thresholds = unbroadcast_tensor(thresholds)
-                # weights = unbroadcast_tensor(weights)
+                # TODO: Padding in case *all* channels end up with fewer than
+                #  2 ** bits - 1 thresholds...
 
                 # Create new value information for the thresholds tensor
                 threshold_tensor = oh.make_tensor_value_info(
@@ -742,7 +595,7 @@ class QuantToMultiThreshold(Transformation):
                 # Insert the output bias tensor information into the graph
                 graph.value_info.append(bias_tensor)
                 # Insert the scale as initializer into the graph
-                model.set_initializer(bias_tensor.name, range_info[out].bias)
+                model.set_initializer(bias_tensor.name, bias)
                 # Create an Add node taking the bias for converting the
                 # quantized output back to floating-point
                 add = oh.make_node(
