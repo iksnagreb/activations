@@ -229,8 +229,6 @@ def evaluate_subgraph(subgraph: list[NodeProto], model: ModelWrapper, x):
 # Extracts multi-threshold representation from a function input-output pair
 # covering the whole range of possible inputs at some resolution we do not
 # actually care for anymore at this point.
-# TODO: This cleaned-up version of the search/extraction probably needs to be
-#  embedded below to derive a chunked version avoiding OOM issues once again...
 def find_thresholds(x: np.array, y: np.array):
     # Find all step locations by convolution with an edge detection kernel
     edges = convolve1d(y, np.array([+1, -1]), mode="nearest", axis=0, origin=-1)
@@ -274,6 +272,16 @@ def find_thresholds(x: np.array, y: np.array):
     return np.asarray(thresholds), np.asarray(weights), scale, bias + min_bias
 
 
+# Multi-threshold representation of a piecewise-constant function
+def multithreshold(x, thresholds, weights=None, scale=1.0, bias=0.0):
+    # Expand a dimension at the end to match and broadcast the thresholds
+    x = np.expand_dims(x, axis=-1)
+    # Weights are optional: Assume positive unit steps by default
+    weights = np.ones_like(thresholds) if weights is None else weights
+    # Count steps and scale and shift into expected output range
+    return scale * np.sum(weights * (x >= thresholds), axis=-1) + bias
+
+
 # Converts supported quantized activation functions to MultiThreshold
 class QuantToMultiThreshold(Transformation):
     # Filter to reject the global input quantizer from conversion...
@@ -311,14 +319,12 @@ class QuantToMultiThreshold(Transformation):
 
     # Initializes the conversion by setting a seed range information for the
     # range analysis pass
-    def __init__(self, range_info: RangeInfo = None, rescale=0.5,
+    def __init__(self, range_info: RangeInfo = None,
                  quant_filter=None, assume_monotonic=False):
         # Initialize the Transformation super class
         super().__init__()
         # Store the seed range information
         self.range_info = range_info
-        # Extra scale applied when enumerating the inputs
-        self.rescale = rescale
         # Filter function to control which quantizers are converted to
         # thresholds: None means no additional filter
         self.quant_filter = quant_filter
@@ -481,19 +487,70 @@ class QuantToMultiThreshold(Transformation):
                 # the inputs, set some default
                 dx = 1.0e-4 if dx is None else np.min(np.asarray(dx))
 
-                # TODO: Re-implement chunked evaluation and threshold search to
-                #  avoid OOM issues for large/high resolution ranges...
+                # Start with a single big chunk covering the whole input range
+                # divided into uniform steps
+                chunks = [(x0, x1, int(np.ceil(np.max(x1 - x0) / dx)))]
 
-                # Span the whole input range divided into uniform steps
-                xs = np.linspace(x0, x1, int(np.ceil(np.max(x1 - x0) / dx)))
+                # Breaking up the chunks
+                while True:
+                    # Stop once all chunks cover not more than 1024 elements
+                    if all([size <= 2 ** 10 for _, _, size in chunks]):
+                        break
+
+                    # Next chunk for refinement
+                    x0, x1, size = chunks.pop(0)
+
+                    # Evaluate function output at the bounds of the chunk
+                    y0, y1 = evaluate_subgraph(subgraph, model, [x0, x1])
+
+                    # Assuming monotonicity we can drop all chunks where the
+                    # output does not change to speed up search
+                    if not self.assume_monotonic or np.any(y0 != y1):
+                        # Do not cut smaller than necessary...
+                        if size <= 2 ** 10:
+                            # Just put it back
+                            chunks.append((x0, x1, size))
+                            # And continue with the next chunk
+                            continue
+
+                        # Mid-point for splitting the chunk in two equal halves
+                        xm = x0 + 0.5 * (x1 - x0)
+                        # Insert both halves to be refined in later iterations
+                        chunks.append((x0, xm, np.ceil(np.max(xm - x0) / dx)))
+                        chunks.append((xm, x1, np.ceil(np.max(x1 - xm) / dx)))
+
+                # Span the whole range of input values for each chunk
+                # TODO: Assuming non-monotonicity this still might result in OOM
+                #  issues for large/high resolution ranges...
+                chunks = [np.linspace(x0, x1, int(s)) for x0, x1, s in chunks]
+
+                # Join all chunks for parallel processing
+                xs = np.concatenate(chunks)
                 # Make sure all inputs are at the quantization levels
-                xs = np.round(xs / np.asarray(dx)) * np.asarray(dx)
+                xs = np.floor(xs / np.asarray(dx)) * np.asarray(dx)
                 # Evaluate the function on the range in batch mode
                 ys = _evaluate_subgraph(subgraph, model, xs)
 
                 # Find weighted thresholds and output scale and bias over the
                 # input-output range
                 thresholds, weights, scale, bias = find_thresholds(xs, ys)
+
+                # Evaluate the just-extracted multi-threshold representation on
+                # the input range
+                # TODO: This might end up using a lot of memory due to
+                #  broadcasting thresholds resulting in OOM issues...
+                zs = multithreshold(xs, thresholds, weights, scale, bias)
+
+                # Sanity check for correctness (exactness): The multi-threshold
+                # representation must match the original subgraph
+                if not np.allclose(ys, zs):
+                    # Issue a warning to make the user aware of this
+                    warnings.warn(
+                        f"{self.__class__.__name__}: Skipping near match: "
+                        f"Threshold conversion failed near {quant.name}"
+                    )
+                    # Skip to the next candidate activation/quantizer
+                    continue
 
                 # Sanity check for monotonicity: Non-monotonic functions have
                 # some negative weights

@@ -131,9 +131,7 @@ from custom.ints import InferIntInitializers
 #  BatchNorm to Mul and Add operations followed by some necessary cleanup
 # 3. Converts all QONNX Quant nodes to MultiThreshold operations, which can
 #  absorb scales and biases during streamlining
-def prepare_graph(
-        range_info: RangeInfo, rescale: float, streamline=True, thresholds=True
-):
+def prepare_graph(range_info: RangeInfo, streamline=True, thresholds=True):
     # Wrap the actual transformation/build step function
     def step_prepare_graph(model: ModelWrapper, cfg: DataflowBuildConfig):
         # TODO: Verification following these steps always fails when removing
@@ -223,7 +221,7 @@ def prepare_graph(
             # Note: This is exhaustive as well as single .transform reapplies as
             # long as possible.
             model = model.transform(QuantToMultiThreshold(
-                range_info, rescale,
+                range_info,
                 # We cannot implement anything else but monotonic functions
                 # anyway
                 assume_monotonic=True,
@@ -236,13 +234,13 @@ def prepare_graph(
                 verify_step(
                     model, cfg, "quant_to_thresholds_python", need_parent=False
                 )
-            # Fallback to old threshold conversion if some quantizers are not
-            # converted to prevent excessive memory utilization
-            model = model.transform(
-                ConvertQuantActToMultiThreshold(
-                    QuantToMultiThreshold.reject_input_quant
-                )
-            )
+            # # Fallback to old threshold conversion if some quantizers are not
+            # # converted to prevent excessive memory utilization
+            # model = model.transform(
+            #     ConvertQuantActToMultiThreshold(
+            #         QuantToMultiThreshold.reject_input_quant
+            #     )
+            # )
 
         # Some extra cleanup steps that are covered by later streamlining, but
         # we might disable the streamlining but allways needs these...
