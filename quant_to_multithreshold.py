@@ -137,7 +137,7 @@ def extract_quant_fusible_subgraph(
                     return False
         # We can fuse quantizer into quantizers, monotonic activations and
         # monotonic elementwise operations
-        if n.op_type in FUSIBLE_OPS:
+        if n.op_type in FUSIBLE_OPS and quant_filter(model, n):
             # We cannot fuse branching topologies for now...
             return not (model.is_join_node(n) or model.is_fork_node(n))
         # Cannot fuse this operator...
@@ -287,9 +287,10 @@ class QuantToMultiThreshold(Transformation):
     # Filter to reject the global input quantizer from conversion...
     @staticmethod
     def reject_input_quant(model: ModelWrapper, node: NodeProto):
-        # If node is not a quantizer, reject it...
+        # If node is not a quantizer, do not reject it here, there should be
+        # other conditions to reject it checked elsewhere...
         if not node.op_type in SUPPORTED_QUANTIZERS:
-            return False
+            return True
         # Get the names of all global input tensors to insert a Squeeze
         # operation in front
         global_inputs = [inp.name for inp in model.graph.input]
@@ -307,9 +308,10 @@ class QuantToMultiThreshold(Transformation):
     def reject_bit_width(bits: int):
         # The actual filter function...
         def _filter(model: ModelWrapper, node: NodeProto):
-            # If node is not a quantizer, reject it...
+            # If node is not a quantizer, do not reject it here, there should be
+            # other conditions to reject it checked elsewhere...
             if not node.op_type in SUPPORTED_QUANTIZERS:
-                return False
+                return True
             # Check whether the quantizer represents the output with too many
             # bits
             return int(model.get_initializer(node.input[3])) < bits
@@ -527,7 +529,7 @@ class QuantToMultiThreshold(Transformation):
                 # Join all chunks for parallel processing
                 xs = np.concatenate(chunks)
                 # Make sure all inputs are at the quantization levels
-                xs = np.floor(xs / np.asarray(dx)) * np.asarray(dx)
+                xs = np.round(xs / np.asarray(dx)) * np.asarray(dx)
                 # Evaluate the function on the range in batch mode
                 ys = _evaluate_subgraph(subgraph, model, xs)
 
