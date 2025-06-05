@@ -31,7 +31,8 @@ from finn.transformation.streamline import (
 
 # Range analysis to generate input ranges and scales use to enumerate inputs and
 # outputs of quantized activation functions to generate thresholds
-from qonnx.util.range_analysis import range_analysis, RangeInfo
+from qonnx.util.range_analysis import range_analysis, RangeInfo, \
+    unbroadcast_tensor
 # Executes an ONNX node considering QONNX domain operations as well
 from qonnx.core.onnx_exec import execute_node
 # Utility for creating a tensor according to the description in ONNX value info
@@ -574,8 +575,38 @@ class QuantToMultiThreshold(Transformation):
                         f" near {quant.name}: {scale} vs. {dy} (from RA)"
                     )
 
-                # TODO: Padding in case *all* channels end up with fewer than
-                #  2 ** bits - 1 thresholds...
+                # Sign-bias of the thresholding function shifting the output
+                # into the negative range in case of a signed quantize
+                out_bias = float((- 2 ** (bits - 1) + narrow) if signed else 0)
+                # If we have some bias extracted from the subgraph evaluation,
+                # take away the part already covered by the sign-bias
+                bias = unbroadcast_tensor(bias - out_bias)
+
+                # Common positive integer amounts of bias can be handled by
+                # padding thresholds from the left
+                padding = max(int(np.min(bias)), 0)
+                # Remove the padding contribution form the bias - the remaining
+                # part is either some fractional amount or per-channel and must
+                # be inserted into the graph as an Add operator...
+                bias = bias - padding
+                # Pad thresholds by negative infinities from the left - will be
+                # clipped to the actual range in post-processing
+                padding = -np.inf * np.ones((thresholds.shape[0], padding))
+                # Add the padding to both thresholds and weights
+                thresholds = np.concatenate([padding, thresholds], -1)
+                weights = np.concatenate([np.ones_like(padding), weights], -1)
+
+                # Extra amount of padding needed to fill up the threshold list
+                # to the expected number according to the quantizer
+                # TODO: This might not be necessary any more with recent
+                #  extension of the thresholding (RTL?) operator...
+                padding = max(2 ** 8 - 1 - narrow - thresholds.shape[-1], 0)
+                # Pad thresholds by positive infinities from the right - will be
+                # clipped to the actual range in post-processing
+                padding = np.inf * np.ones((thresholds.shape[0], padding))
+                # Add the padding to both thresholds and weights
+                thresholds = np.concatenate([thresholds, padding], -1)
+                weights = np.concatenate([weights, np.ones_like(padding)], -1)
 
                 # Create new value information for the thresholds tensor
                 threshold_tensor = oh.make_tensor_value_info(
@@ -608,11 +639,9 @@ class QuantToMultiThreshold(Transformation):
                     # Derive the name of the output datatype based on
                     # signedness and number of bits required
                     out_dtype=f"INT{bits}" if signed else f"UINT{bits}",
-                    # If the output is signed, a bias is required to shift
-                    # the unsigned threshold counting to the signed output
-                    # range
-                    out_bias=float(
-                        (- 2 ** (bits - 1) + narrow) if signed else 0),
+                    # Sign-bias of the thresholding function shifting the output
+                    # into the negative range in case of a signed quantize
+                    out_bias=out_bias,
                     # Set the data layout inferred or inherited from the input
                     data_layout="".join(layout)
                 )
