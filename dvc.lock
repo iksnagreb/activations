@@ -22,7 +22,7 @@ stages:
           opset_version: 14
           do_constant_folding: true
         model:
-          activation: relu
+          activation: sign
           pattern: x
           input_bits: 8
           bits: 8
@@ -48,11 +48,11 @@ stages:
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 4b8663029f6fc7d2a14ff1785da533f3
+      md5: 9e3830e874fc49ca51d21642edd6ce58
       size: 1305
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: dd7f1316b899b55f4eb6b8edd88d4491
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
@@ -79,7 +79,7 @@ stages:
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 4b8663029f6fc7d2a14ff1785da533f3
+      md5: 9e3830e874fc49ca51d21642edd6ce58
       size: 1305
     - path: noctua.sh
       hash: md5
@@ -87,7 +87,7 @@ stages:
       size: 1832
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: dd7f1316b899b55f4eb6b8edd88d4491
       size: 1152
     - path: quant_to_multithreshold.py
       hash: md5
@@ -171,16 +171,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: ed67bb6a888f4b61149c92896c5ab487.dir
-      size: 12089538
+      md5: 13b3099338a6872458e7db0826de0044.dir
+      size: 11477949
       nfiles: 197
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: a7fb2347713cc69c0b57d30d7d43b1b5.dir
-      size: 2162232
+      md5: 4e5307aeebe60724d5cefe43bcfc3d90.dir
+      size: 2163704
       nfiles: 7
     - path: verify.py
       hash: md5
@@ -192,8 +192,8 @@ stages:
     outs:
     - path: verification.yaml
       hash: md5
-      md5: 5224a3f087dfdd2bec5b236e4205ac3c
-      size: 22
+      md5: 8228a4d2ccfbff3d7a47c4e4d34aaad2
+      size: 19
   metrics:
     cmd: "# Copy metrics out of the build directory\ncp build/report/estimate_network_performance.json
       .\ncp build/report/rtlsim_performance.json .\n# Run python script for aggregating
@@ -201,13 +201,13 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: ed67bb6a888f4b61149c92896c5ab487.dir
-      size: 12089538
+      md5: 13b3099338a6872458e7db0826de0044.dir
+      size: 11477949
       nfiles: 197
     - path: build/report/post_synth_resources_dcp.json
       hash: md5
-      md5: 4a399467169fa3d29ce327ac07d7fefc
-      size: 558
+      md5: 1c203fbed585786e76e579e93e19b69a
+      size: 557
     - path: metrics.py
       hash: md5
       md5: 27f0b125aa2cb7f16e96063778b3f888
@@ -228,7 +228,7 @@ stages:
     outs:
     - path: breakdown.yaml
       hash: md5
-      md5: cf168b476c4e23fdbbc30b421ef452fd
+      md5: c77fe6ab7d364a6ed8d4cf43ecc14224
       size: 560
     - path: estimate_network_performance.json
       hash: md5
@@ -236,8 +236,8 @@ stages:
       size: 174
     - path: metrics.yaml
       hash: md5
-      md5: bdda0c46700678b8607a23c23535f9d7
-      size: 65
+      md5: 17c636991575dc8bfd25f231468fe525
+      size: 64
     - path: rtlsim_performance.json
       hash: md5
       md5: a9ad400379ba5439e62595abc130c94a
