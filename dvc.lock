@@ -22,7 +22,7 @@ stages:
           opset_version: 14
           do_constant_folding: true
         model:
-          activation: relu
+          activation: softplus
           pattern: x
           input_bits: 8
           bits: 8
@@ -48,11 +48,11 @@ stages:
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 4b8663029f6fc7d2a14ff1785da533f3
-      size: 1305
+      md5: 8d2d2e237826b5dcb71107bc4d8edf0e
+      size: 1321
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: 2b3f52175f8eb839aa7935bba6ff9bda
       size: 1152
   build:
     cmd: bash run.sh '$FINN/run-docker.sh build_custom $(pwd)'
@@ -79,15 +79,15 @@ stages:
       size: 1152
     - path: model.onnx
       hash: md5
-      md5: 4b8663029f6fc7d2a14ff1785da533f3
-      size: 1305
+      md5: 8d2d2e237826b5dcb71107bc4d8edf0e
+      size: 1321
     - path: noctua.sh
       hash: md5
       md5: f3e8cc342b63cddcd2e07bfe63f6518c
       size: 1832
     - path: out.npy
       hash: md5
-      md5: b78db0ea6e514500418f6a15f5814c1d
+      md5: 2b3f52175f8eb839aa7935bba6ff9bda
       size: 1152
     - path: quant_to_multithreshold.py
       hash: md5
@@ -171,16 +171,16 @@ stages:
     outs:
     - path: build/
       hash: md5
-      md5: b92f6326cbf1a5c9998e29fd3cb48733.dir
-      size: 12089054
+      md5: c0027834d1387cd1f6f538ee1ca3dd29.dir
+      size: 12091259
       nfiles: 197
   verify:
     cmd: python -m verify
     deps:
     - path: build/verification_output/
       hash: md5
-      md5: a7fb2347713cc69c0b57d30d7d43b1b5.dir
-      size: 2162232
+      md5: 92984e83ec61912a19d636373bf4b163.dir
+      size: 2163712
       nfiles: 7
     - path: verify.py
       hash: md5
@@ -201,8 +201,8 @@ stages:
     deps:
     - path: build/
       hash: md5
-      md5: b92f6326cbf1a5c9998e29fd3cb48733.dir
-      size: 12089054
+      md5: c0027834d1387cd1f6f538ee1ca3dd29.dir
+      size: 12091259
       nfiles: 197
     - path: build/report/post_synth_resources_dcp.json
       hash: md5
